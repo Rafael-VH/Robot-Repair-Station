@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Patches the BioTech mechanoid constant think tree to add:
+    1. A conditional check: is the mechanoid's health below the repair threshold?
+    2. A job giver: send the mechanoid to the nearest available repair station.
+
+  This runs before the normal "go charge" subtree so repair takes priority
+  over low-power charging, which is usually the correct behaviour.
+-->
+<Patch>
+
+  <!-- ── Inject repair subtree into the MechanoidConstant think tree ───── -->
+  <Operation Class="PatchOperationInsert">
+    <!--
+      XPath targets the <li Class="ThinkNode_Priority"> that contains the
+      charging / recharging logic inside the BioTech think tree.
+      We insert our repair node BEFORE it so it is evaluated first.
+    -->
+    <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]/thinkRoot/subNodes/li[@Class="ThinkNode_Priority"]/subNodes/li[@Class="ThinkNode_Subtree" and subtreeDef="MechanoidDoNothing"][1]</xpath>
+    <order>Before</order>
+    <value>
+      <!-- Check: mechanoid health is below threshold AND repair station exists -->
+      <li Class="RobotRepairStation.ThinkNode_ConditionalNeedsRepair">
+        <subNodes>
+          <li Class="RobotRepairStation.JobGiver_GoToRepairStation"/>
+        </subNodes>
+      </li>
+    </value>
+  </Operation>
+
+</Patch>

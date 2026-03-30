@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>RobotRepairStation</AssemblyName>
+    <RootNamespace>RobotRepairStation</RootNamespace>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <!-- Output directly to the mod Assemblies folder -->
+    <OutputPath>..\..\Assemblies</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- ── RimWorld References ───────────────────────────────────────────────── -->
+  <!-- Update RIMWORLD_PATH to your local RimWorld install directory           -->
+  <PropertyGroup>
+    <RimWorldPath Condition="'$(RimWorldPath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\RimWorld</RimWorldPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- ── Post-build: copy PDB next to DLL for debugging ───────────────────── -->
+  <Target Name="CopyPDB" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(OutputPath)\$(AssemblyName).pdb"
+      DestinationFolder="..\..\Assemblies"
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(OutputPath)\$(AssemblyName).pdb')" />
+  </Target>
+
+</Project>
