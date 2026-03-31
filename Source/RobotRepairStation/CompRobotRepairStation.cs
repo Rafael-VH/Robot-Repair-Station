@@ -6,35 +6,35 @@ using Verse;
 namespace RobotRepairStation
 {
     /// <summary>
-    /// XML-exposed properties for the repair station comp.
-    /// All values are configurable from the ThingDef XML.
+    /// Propiedades XML del comp de la repair station.
+    /// Todos los valores son configurables desde el ThingDef XML.
     /// </summary>
     public class CompProperties_RobotRepairStation : CompProperties
     {
         /// <summary>
-        /// Health fraction (0–1) below which a mechanoid will seek repair.
-        /// Default: 0.5 (50% health)
+        /// Fracción de salud (0–1) por debajo de la cual un mecanoid busca reparación.
+        /// Default: 0.5 (50% de salud)
         /// </summary>
         public float repairHealthThreshold = 0.5f;
 
         /// <summary>
-        /// How much health is restored per repair interval while the mechanoid is docked.
-        /// Default: 0.0005 per tick (~20% health per in-game hour at normal speed)
+        /// Cuánta salud se restaura por tick de reparación mientras el mecanoid está docked.
+        /// Default: 0.0005 por tick (~20% de salud por hora de juego a velocidad normal)
         /// </summary>
         public float repairSpeedPerTick = 0.0005f;
 
         /// <summary>
-        /// Amount of steel consumed per repair cycle interval.
+        /// Cantidad de acero consumido por ciclo de reparación.
         /// </summary>
         public int steelPerRepairCycle = 1;
 
         /// <summary>
-        /// How many ticks between each repair cycle (steel consumption + health tick).
+        /// Ticks entre cada ciclo de reparación (consumo de acero + tick de salud).
         /// </summary>
         public int repairTickInterval = 500;
 
         /// <summary>
-        /// Maximum distance (in cells) at which a mechanoid will detect this station.
+        /// Distancia máxima (en celdas) a la que un mecanoid detecta esta station.
         /// </summary>
         public float maxRepairRange = 30f;
 
@@ -45,15 +45,22 @@ namespace RobotRepairStation
     }
 
     /// <summary>
-    /// Comp attached to the repair station building.
-    /// Handles per-tick repair logic applied to the current occupant.
+    /// Comp adjunto al building de la repair station.
+    /// Gestiona la lógica de reparación por tick aplicada al ocupante actual.
     ///
-    /// FIX #1: ApplyRepairTick now runs only every repairTickInterval ticks,
-    ///         not every single tick.
-    /// FIX #2: OnRepairComplete is the single authoritative eject point.
-    ///         JobDriver_RepairAtStation no longer calls EjectOccupant itself.
-    /// FIX #7: hediff collection is copied to a List before iteration to avoid
-    ///         InvalidOperationException when Heal() removes a fully-healed hediff.
+    /// FIX #1 (previo): ApplyRepairTick solo se ejecuta cada repairTickInterval ticks.
+    /// FIX #2 (previo): OnRepairComplete es el único punto de eject autorizado.
+    ///                  JobDriver_RepairAtStation detecta el eject indirectamente.
+    /// FIX #7 (previo): hediff collection copiada a List antes de iterar para evitar
+    ///                  InvalidOperationException cuando Heal() elimina un hediff.
+    /// FIX I (nota de diseño): ApplyRepairTick solo cura Hediff_Injury.
+    ///        Hediff_MissingPart (partes amputadas) NO se restaura — requeriría
+    ///        pawn.health.RestorePart() y lógica adicional de regrow.
+    ///        Un mecanoid con partes perdidas alcanzará el 99% de SummaryHealth
+    ///        si sus heridas se curan, pero las partes amputadas permanecen.
+    ///        Esta limitación está documentada en el README y en el XML description.
+    ///        Para restaurar partes amputadas en una versión futura, iterar también
+    ///        sobre hediffs.OfType&lt;Hediff_MissingPart&gt;() y llamar RestorePart().
     /// </summary>
     public class CompRobotRepairStation : ThingComp
     {
@@ -73,7 +80,7 @@ namespace RobotRepairStation
             var pawn = Station.CurrentOccupant;
             if (pawn == null || pawn.Dead) return;
 
-            // FIX #1: Only heal on the configured interval, not every tick.
+            // FIX #1: Solo curar en el intervalo configurado, no cada tick.
             if (Find.TickManager.TicksGame % Props.repairTickInterval == 0)
             {
                 ApplyRepairTick(pawn);
@@ -82,9 +89,9 @@ namespace RobotRepairStation
 
         private void ApplyRepairTick(Pawn mechanoid)
         {
-            // FIX #7: Copy hediffs to a separate list before iterating.
-            // Heal() can remove a fully-healed injury from the live collection,
-            // which would throw InvalidOperationException mid-loop.
+            // FIX #7: Copiar hediffs a una lista separada antes de iterar.
+            // Heal() puede eliminar una herida completamente curada de la colección
+            // en vivo, lo que lanzaría InvalidOperationException en medio del loop.
             List<Hediff_Injury> injuries = mechanoid.health.hediffSet.hediffs
                 .OfType<Hediff_Injury>()
                 .Where(h => !h.IsOld())
@@ -95,8 +102,8 @@ namespace RobotRepairStation
                 injury.Heal(Props.repairSpeedPerTick);
             }
 
-            // FIX #2: Check completion here only; the job driver detects the
-            // eject indirectly by noticing CurrentOccupant != pawn.
+            // FIX #2: La verificación de completado ocurre aquí únicamente.
+            // El job driver detecta el eject cuando CurrentOccupant pasa a null.
             if (mechanoid.health.summaryHealth.SummaryHealthPercent >= 0.99f)
             {
                 OnRepairComplete(mechanoid);
@@ -104,9 +111,9 @@ namespace RobotRepairStation
         }
 
         /// <summary>
-        /// Single authoritative point for declaring repair finished.
-        /// Sends a positive message and ejects the occupant.
-        /// The job driver detects the eject via Station.CurrentOccupant != pawn.
+        /// Único punto autorizado para declarar la reparación terminada.
+        /// Envía mensaje positivo y expulsa al ocupante.
+        /// El job driver detecta el eject via Station.CurrentOccupant != pawn.
         /// </summary>
         private void OnRepairComplete(Pawn mechanoid)
         {
@@ -116,9 +123,6 @@ namespace RobotRepairStation
                 MessageTypeDefOf.PositiveEvent
             );
 
-            // EjectOccupant sets currentOccupant = null and ends the repair job.
-            // The job driver's tickAction will then see CurrentOccupant != pawn
-            // and call EndJobWith(Succeeded) cleanly.
             Station.EjectOccupant();
         }
     }
