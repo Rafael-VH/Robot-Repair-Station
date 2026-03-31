@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-using RimWorld;
-using Verse;
-using Verse.AI;
-
 namespace RobotRepairStation
 {
     /// <summary>
@@ -36,8 +31,10 @@ namespace RobotRepairStation
             {
                 if (Station.TryAcceptOccupant(pawn))
                 {
+                    // Usar injuryJob en lugar de StartJob directo
                     var repairJob = JobMaker.MakeJob(RRS_JobDefOf.RRS_RepairAtStation, Station);
-                    pawn.jobs.StartJob(repairJob, JobCondition.Succeeded);
+                    pawn.jobs.jobQueue.EnqueueFirst(repairJob);
+                    EndJobWith(JobCondition.Succeeded); // termina el GoTo, el queue lanza el siguiente
                 }
                 else
                 {

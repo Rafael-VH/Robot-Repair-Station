@@ -1,25 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>Robot Repair Station</name>
-  <author>TuNombre</author>
-  <packageId>TuNombre.RobotRepairStation</packageId>
+  <author>RexThar</author>
+  <packageId>RexThar.RobotRepairStation</packageId>
   <description>
     Adds a Robot Repair Station for BioTech mechanoids.
-    
-    When a mechanoid's health drops below a configurable threshold, it will automatically seek out the nearest Robot Repair Station and begin self-repair. The station requires power and consumes steel to perform repairs.
-    
-    Features:
-    - Robots automatically seek repair when health is low
-    - Configurable health threshold for triggering repair
-    - Consumes steel resources during repair
-    - Requires power to operate
-    - Compatible with all vanilla BioTech mechanoids
-    
+
+    When a mechanoid's health drops below a configurable threshold, it will automatically seek out the nearest Robot Repair Station and begin self-repair. The station requires power and consumes steel.
+
+    Note: repairs active injuries only. Lost body parts are not regenerated.
+
     Requires Biotech DLC.
   </description>
   <supportedVersions>
-    <li>1.4</li>
-    <li>1.5</li>
+    <li>1.6</li>
   </supportedVersions>
   <modDependencies>
     <li>

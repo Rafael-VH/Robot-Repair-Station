@@ -1,9 +1,3 @@
-using System.Collections.Generic;
-using System.Text;
-using RimWorld;
-using UnityEngine;
-using Verse;
-using Verse.AI;
 
 namespace RobotRepairStation
 {
@@ -98,11 +92,12 @@ namespace RobotRepairStation
 
             if (!HasPower) return;
             if (!IsOccupied) return;
+            if (RepairProps == null) return; // guarda adicional
 
-            if (Find.TickManager.TicksGame % (RepairProps?.repairTickInterval ?? 500) == 0)
-            {
+            if (Find.TickManager.TicksGame % RepairProps.repairTickInterval == 0)
+
                 TryConsumeSteel();
-            }
+
         }
 
         // ─── Occupant Management ─────────────────────────────────────────────
@@ -143,7 +138,7 @@ namespace RobotRepairStation
             }
 
             // Release any reservation this pawn still holds on this building.
-            Map?.reservationManager.ReleaseAllForTarget(this);
+            Map?.reservationManager.Release(this, occupant, occupant.CurJob);
 
             currentOccupant = null;
         }
@@ -214,9 +209,9 @@ namespace RobotRepairStation
                 yield return new Command_Action
                 {
                     defaultLabel = "RRS_GizmoEjectOccupant".Translate(),
-                    defaultDesc  = "RRS_GizmoEjectOccupantDesc".Translate(),
-                    icon         = ContentFinder<Texture2D>.Get("UI/Commands/LaunchReport"),
-                    action       = EjectOccupant
+                    defaultDesc = "RRS_GizmoEjectOccupantDesc".Translate(),
+                    icon = ContentFinder<Texture2D>.Get("UI/Commands/LaunchReport"),
+                    action = EjectOccupant
                 };
             }
         }

@@ -1,6 +1,3 @@
-using RimWorld;
-using Verse;
-using Verse.AI;
 
 namespace RobotRepairStation
 {
@@ -46,7 +43,8 @@ namespace RobotRepairStation
         /// Devuelve la station cacheada si corresponde al pawn indicado,
         /// evitando una segunda llamada a FindBestRepairStation.
         /// </summary>
-        public Building_RobotRepairStation GetCachedStation(Pawn pawn) => (lastEvaluatedPawn == pawn
+        public Building_RobotRepairStation GetCachedStation(Pawn pawn)
+    => (lastEvaluatedPawn == pawn
         && cachedStation != null
         && !cachedStation.Destroyed)
         ? cachedStation
