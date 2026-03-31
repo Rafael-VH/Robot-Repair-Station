@@ -10,6 +10,11 @@ namespace RobotRepairStation
     /// <summary>
     /// The Robot Repair Station building. Manages which mechanoid is currently
     /// docked and broadcasts repair availability to nearby mechanoids.
+    ///
+    /// FIX #4: TryConsumeSteel now subtracts Props.steelPerRepairCycle from the
+    ///         buffer instead of always decrementing by 1.
+    /// FIX #5: EjectOccupant releases all reservations the occupant held on this
+    ///         building so other mechanoids can reserve it immediately.
     /// </summary>
     public class Building_RobotRepairStation : Building
     {
@@ -37,7 +42,6 @@ namespace RobotRepairStation
         public override void SpawnSetup(Map map, bool respawningAfterLoad)
         {
             base.SpawnSetup(map, respawningAfterLoad);
-            // Register with the repair station tracker for this map
             RepairStationTracker.GetOrCreate(map).Register(this);
         }
 
@@ -64,7 +68,6 @@ namespace RobotRepairStation
             if (!HasPower) return;
             if (!IsOccupied) return;
 
-            // Try to consume steel periodically
             if (Find.TickManager.TicksGame % (RepairProps?.repairTickInterval ?? 500) == 0)
             {
                 TryConsumeSteel();
@@ -86,14 +89,29 @@ namespace RobotRepairStation
             currentOccupant = null;
         }
 
+        /// <summary>
+        /// Forces the current occupant to leave the station.
+        ///
+        /// FIX #5: After ending the occupant's job, all reservations that pawn
+        /// held on this building are released so the next mechanoid can
+        /// immediately reserve and path to the station.
+        /// </summary>
         public void EjectOccupant()
         {
             if (!IsOccupied) return;
 
-            if (currentOccupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation)
+            Pawn occupant = currentOccupant;
+
+            // End the repair job first (sets pawn free to receive new jobs).
+            if (occupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation)
             {
-                currentOccupant.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                occupant.jobs.EndCurrentJob(JobCondition.InterruptForced);
             }
+
+            // FIX #5: Release any reservation this pawn (or any pawn of its
+            // faction) still holds on this building. Without this the station
+            // appears reserved and other mechanoids cannot be assigned to it.
+            Map?.reservationManager.ReleaseAllForTarget(this);
 
             currentOccupant = null;
         }
@@ -101,13 +119,16 @@ namespace RobotRepairStation
         // ─── Steel Management ─────────────────────────────────────────────────
         private void TryConsumeSteel()
         {
-            if (steelBuffer > 0)
+            // FIX #4: Consume steelPerRepairCycle units per interval, not always 1.
+            int toConsume = RepairProps?.steelPerRepairCycle ?? 1;
+
+            if (steelBuffer >= toConsume)
             {
-                steelBuffer--;
+                steelBuffer -= toConsume;
                 return;
             }
 
-            // Try to pull steel from adjacent stockpiles / ground
+            // Buffer is too low — try to pull steel from adjacent stockpiles / ground.
             Thing steel = GenClosest.ClosestThingReachable(
                 Position,
                 Map,
@@ -121,11 +142,14 @@ namespace RobotRepairStation
             {
                 int take = Mathf.Min(steel.stackCount, SteelBufferMax);
                 steel.SplitOff(take).Destroy();
-                steelBuffer = take - 1;
+
+                // FIX #4: Fill buffer then immediately deduct this cycle's cost.
+                steelBuffer = take - toConsume;
+                steelBuffer = Mathf.Max(steelBuffer, 0);
             }
             else
             {
-                // No steel found — notify and eject
+                // No steel found — notify player and eject the occupant.
                 Messages.Message(
                     "RRS_LetterNoSteelText".Translate(currentOccupant.LabelShort),
                     this,
@@ -138,10 +162,9 @@ namespace RobotRepairStation
         // ─── Gizmos ───────────────────────────────────────────────────────────
         public override IEnumerable<Gizmo> GetGizmos()
         {
-            foreach (var g in base.GetGizmos())
+            foreach (Gizmo g in base.GetGizmos())
                 yield return g;
 
-            // Eject button
             if (IsOccupied)
             {
                 yield return new Command_Action

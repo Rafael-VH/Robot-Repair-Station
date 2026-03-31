@@ -1,12 +1,16 @@
 using HarmonyLib;
-using RimWorld;
 using Verse;
-using Verse.AI;
 
 namespace RobotRepairStation
 {
     /// <summary>
     /// Entry point for the mod. Applies Harmony patches on startup.
+    ///
+    /// FIX #10: Removed the empty [HarmonyPatch] attribute from the documentation
+    ///          class below. Harmony 2.x would attempt to patch
+    ///          Pawn_JobTracker.DetermineNextJob with no prefix/postfix, which
+    ///          produces log warnings on some builds and wastes a patch slot.
+    ///          The comment is kept for documentation purposes only.
     /// </summary>
     [StaticConstructorOnStartup]
     public static class RRS_Mod
@@ -20,19 +24,18 @@ namespace RobotRepairStation
     }
 
     /// <summary>
-    /// Patches the mechanoid think tree resolver to inject the repair need node
-    /// at a high priority so mechanoids seek repair before other low-priority tasks.
+    /// Documentation stub — no Harmony patch is applied here.
     ///
-    /// We hook into ThinkTreeDef.DoResolveReferences because that is where
-    /// the tree nodes are fully assembled and ready to be modified.
+    /// The mechanoid AI injection is handled entirely via the XML patch at
+    /// Patches/MechanoidThinkTree.xml, which inserts
+    /// ThinkNode_ConditionalNeedsRepair before the vanilla charge subtree.
     ///
-    /// Alternative: use an XML Patch on the MechanoidConstant ThinkTree def
-    /// (see Patches/MechanoidThinkTree.xml for the XML-only approach).
+    /// If a runtime Harmony patch is ever needed in the future, add the
+    /// [HarmonyPatch] attribute back to this class and implement the
+    /// appropriate prefix / postfix / transpiler static methods.
     /// </summary>
-    [HarmonyPatch(typeof(Pawn_JobTracker), "DetermineNextJob")]
     public static class Patch_PawnJobTracker_DetermineNextJob
     {
-        // No prefix/postfix here; we rely on the ThinkTree XML patch instead.
-        // This file is kept as the Harmony bootstrap entry point only.
+        // No patch methods — see Patches/MechanoidThinkTree.xml.
     }
 }

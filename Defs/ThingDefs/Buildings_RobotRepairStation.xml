@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
 
-  <!-- ==================== ROBOT REPAIR STATION ==================== -->
+  <!--
+    ==================== ROBOT REPAIR STATION ====================
+
+    FIX #8: Removed <inspectorTabs><li>ITab_Storage</li></inspectorTabs>.
+    Building_RobotRepairStation does not implement IStoreSettingsParent and
+    has no CompStorage, so clicking the Storage tab caused a NullReferenceException.
+    The tab has been removed. If storage filtering is added in the future,
+    implement IStoreSettingsParent on the building class first.
+  -->
   <ThingDef ParentName="BuildingBase">
     <defName>RRS_RobotRepairStation</defName>
     <label>robot repair station</label>
@@ -51,9 +59,7 @@
         <maxRepairRange>30</maxRepairRange>
       </li>
     </comps>
-    <inspectorTabs>
-      <li>ITab_Storage</li>
-    </inspectorTabs>
+    <!-- FIX #8: ITab_Storage block removed — no IStoreSettingsParent implementation. -->
     <building>
       <ai_chillDestination>false</ai_chillDestination>
       <preventDeteriorationOnTop>true</preventDeteriorationOnTop>
