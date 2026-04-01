@@ -1,5 +1,11 @@
 # Robot Repair Station — RimWorld BioTech Mod
 
+![RimWorld](https://img.shields.io/badge/RimWorld-v1.6-8B4513?style=for-the-badge)
+![BioTech](https://img.shields.io/badge/BioTech_DLC-v1.6-6A0DAD?style=for-the-badge)
+![Harmony](https://img.shields.io/badge/Harmony-2.x-brightgreen?style=for-the-badge)
+![CSharp](https://img.shields.io/badge/C%23-.NET_4.7.2-239120?style=for-the-badge&logo=csharp&logoColor=white)
+![XML](https://img.shields.io/badge/XML-RimWorld_Defs-F7891A?style=for-the-badge)
+
 A repair docking station for mechanoids. When a mechanoid's health drops below a
 configurable threshold it will autonomously navigate to the station and undergo
 automated repair using steel as a resource.
@@ -19,7 +25,7 @@ automated repair using steel as a resource.
 
 ## Folder Structure
 
-```
+```text
 RobotRepairStation/
 ├── About/
 │   └── About.xml               ← Mod metadata (name, packageId, dependencies)
@@ -61,6 +67,7 @@ RobotRepairStation/
 ## Compiling the C# Code
 
 ### Prerequisites
+
 - .NET SDK 6+ (or Visual Studio 2022)
 - RimWorld installed via Steam
 
@@ -73,6 +80,7 @@ RobotRepairStation/
 4. The compiled `RobotRepairStation.dll` is automatically placed in `Assemblies/`.
 
 ### Command-line build
+
 ```bash
 cd Source/RobotRepairStation
 dotnet build -c Release
@@ -83,7 +91,8 @@ dotnet build -c Release
 ## Adding the Texture
 
 Place a **128 × 128 px** PNG at:
-```
+
+```text
 Textures/Things/Buildings/RobotRepairStation.png
 ```
 
