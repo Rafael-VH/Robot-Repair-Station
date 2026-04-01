@@ -1,39 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Patches the BioTech mechanoid constant think tree to add:
-    1. A conditional check: is the mechanoid's health below the repair threshold?
-    2. A job giver: send the mechanoid to the nearest available repair station.
 
-  Repair is evaluated BEFORE the vanilla charge subtree so a critically
-  damaged mechanoid prioritises self-repair over low-power recharging.
-
-  ── XPath notes ─────────────────────────────────────────────────────────────
-  FIX #3: The original XPath targeted a "MechanoidDoNothing" subtree node that
-  does not exist in BioTech 1.4–1.6 ThinkTrees, causing the patch to silently
-  fail and leaving mechanoids with no repair AI.
-
-  The corrected XPath inserts before the first ThinkNode_Subtree whose
-  subtreeDef is "MechanoidConstantCharge" — the real charging subtree present
-  in vanilla BioTech.  If the subtree is ever renamed by Ludeon, the
-  <success>Always</success> tag prevents the game from hard-erroring on load;
-  in that case a yellow warning will appear in the log instead.
-
-  To validate the XPath against your RimWorld version, open:
-    <RimWorld>\Data\Biotech\Defs\ThinkTreeDefs\ThinkTree_MechanoidConstant.xml
-  and confirm the subtreeDef name of the charging node.
-  ────────────────────────────────────────────────────────────────────────────
--->
 <Patch>
 
   <!-- ── Inject repair subtree into the MechanoidConstant think tree ───── -->
   <Operation Class="PatchOperationInsert">
-    <!--
-      Targets the ThinkNode_Subtree for mechanoid charging inside the
-      MechanoidConstant priority block, and inserts our repair node BEFORE it.
-
-      Adjust "MechanoidConstantCharge" below if your RimWorld version uses a
-      different subtreeDef name for the charging logic.
-    -->
     <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]/thinkRoot/subNodes/li[@Class="ThinkNode_Priority"]/subNodes/li[@Class="ThinkNode_Subtree" and subtreeDef="MechanoidConstantCharge"][1]</xpath>
     <order>Before</order>
     <value>
@@ -45,11 +15,6 @@
         </subNodes>
       </li>
     </value>
-    <!--
-      FIX #3: "Always" means the game continues loading even if the XPath
-      finds no matching node (e.g. if Ludeon renames the charge subtree).
-      A warning is written to the log so the issue is visible without a crash.
-    -->
     <success>Always</success>
   </Operation>
 

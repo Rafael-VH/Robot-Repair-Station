@@ -1,26 +1,12 @@
+using System.Collections.Generic;
+using System.Text;
+using RimWorld;
+using UnityEngine;
+using Verse;
+using Verse.AI;
 
 namespace RobotRepairStation
 {
-    /// <summary>
-    /// The Robot Repair Station building. Manages which mechanoid is currently
-    /// docked and broadcasts repair availability to nearby mechanoids.
-    ///
-    /// FIX A: SpawnSetup valida el job activo del ocupante tras cargar un save.
-    ///        Si el pawn no tiene el job activo, currentOccupant se limpia para
-    ///        evitar que la station quede bloqueada permanentemente.
-    /// FIX B: TryConsumeSteel usa el ocupante actual como traverser en GenClosest
-    ///        en lugar de TraverseParms.For(TraverseMode.PassDoors) sin pawn,
-    ///        que producía comportamiento indefinido o NullReferenceException.
-    /// FIX C: NotifyOccupantLeft() redirige a EjectOccupant() para garantizar
-    ///        limpieza completa de reservaciones. Antes solo ponía currentOccupant
-    ///        a null sin liberar la reserva, dejando un invisible lock.
-    /// FIX F: TryConsumeSteel consume el stack de acero correctamente:
-    ///        Destroy() directo si cogemos todo el stack, stackCount -= take si
-    ///        cogemos parte. SplitOff().Destroy() sobre el Thing original cuando
-    ///        take == stackCount no notificaba al sistema de haul.
-    /// FIX H: GetInspectString usa Append + '\n' en lugar de AppendLine para
-    ///        evitar el \r\n de Windows que produce doble salto en la UI de RimWorld.
-    /// </summary>
     public class Building_RobotRepairStation : Building
     {
         // ─── State ────────────────────────────────────────────────────────────
@@ -49,11 +35,6 @@ namespace RobotRepairStation
             base.SpawnSetup(map, respawningAfterLoad);
             RepairStationTracker.GetOrCreate(map).Register(this);
 
-            // FIX A: Tras cargar un save, el pawn serializado puede no tener el
-            // job activo (RimWorld no restaura JobDrivers automáticamente desde
-            // referencias de building). Si currentOccupant no tiene el job,
-            // limpiar el estado para evitar que la station quede bloqueada
-            // permanentemente hasta que el jugador la destruya.
             if (respawningAfterLoad && currentOccupant != null)
             {
                 bool hasActiveJob =
@@ -110,34 +91,22 @@ namespace RobotRepairStation
             return true;
         }
 
-        /// <summary>
-        /// FIX C: Redirige a EjectOccupant() para garantizar limpieza completa
-        /// (reservaciones incluidas). Antes este método solo hacía
-        /// currentOccupant = null sin liberar la reserva del pawn, dejando
-        /// un invisible lock que impedía a otros mecanoides reservar la station.
-        /// </summary>
         public void NotifyOccupantLeft()
         {
             EjectOccupant();
         }
 
-        /// <summary>
-        /// Forces the current occupant to leave the station.
-        /// Releases all reservations so the next mechanoid can reserve immediately.
-        /// </summary>
         public void EjectOccupant()
         {
             if (!IsOccupied) return;
 
             Pawn occupant = currentOccupant;
 
-            // End the repair job first (sets pawn free to receive new jobs).
             if (occupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation)
             {
                 occupant.jobs.EndCurrentJob(JobCondition.InterruptForced);
             }
 
-            // Release any reservation this pawn still holds on this building.
             Map?.reservationManager.Release(this, occupant, occupant.CurJob);
 
             currentOccupant = null;
@@ -154,10 +123,6 @@ namespace RobotRepairStation
                 return;
             }
 
-            // Buffer bajo — buscar acero en stockpiles / suelo cercanos.
-            // FIX B: usar el ocupante como traverser para que PassDoors funcione
-            // correctamente (necesita facción para saber qué puertas puede abrir).
-            // Si por alguna razón no hay ocupante, caer a NoPassClosedDoors.
             TraverseParms traverseParams = currentOccupant != null
                 ? TraverseParms.For(currentOccupant, Danger.Deadly)
                 : TraverseParms.For(TraverseMode.NoPassClosedDoors);
@@ -175,20 +140,15 @@ namespace RobotRepairStation
             {
                 int take = Mathf.Min(steel.stackCount, SteelBufferMax);
 
-                // FIX F: consumir el stack correctamente para notificar al sistema
-                // de haul. SplitOff().Destroy() sobre el Thing original cuando
-                // take == stackCount no elimina el item del ListerHaulables.
                 if (take >= steel.stackCount)
                     steel.Destroy(DestroyMode.Vanish);
                 else
                     steel.stackCount -= take;
 
-                // Rellenar buffer y descontar el ciclo actual.
                 steelBuffer = Mathf.Max(0, take - toConsume);
             }
             else
             {
-                // Sin acero — notificar al jugador y expulsar al ocupante.
                 Messages.Message(
                     "RRS_LetterNoSteelText".Translate(currentOccupant.LabelShort),
                     this,
@@ -219,9 +179,6 @@ namespace RobotRepairStation
         // ─── Inspection String ────────────────────────────────────────────────
         public override string GetInspectString()
         {
-            // FIX H: Usar Append + '\n' en lugar de AppendLine.
-            // AppendLine emite \r\n en Windows, lo que produce doble salto de
-            // línea visible en el panel de inspección de RimWorld.
             var sb = new StringBuilder(base.GetInspectString());
 
             if (!HasPower)

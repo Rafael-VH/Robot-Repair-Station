@@ -1,9 +1,9 @@
+using System.Collections.Generic;
+using Verse;
+using Verse.AI;
+
 namespace RobotRepairStation
 {
-    /// <summary>
-    /// Job driver: the mechanoid walks to the repair station and docks.
-    /// Transitions to RRS_RepairAtStation once it arrives.
-    /// </summary>
     public class JobDriver_GoToRepairStation : JobDriver
     {
         private Building_RobotRepairStation Station =>
@@ -16,25 +16,21 @@ namespace RobotRepairStation
 
         protected override IEnumerable<Toil> MakeNewToils()
         {
-            // Fail if station becomes invalid
             this.FailOnDespawnedOrNull(TargetIndex.A);
             this.FailOnForbidden(TargetIndex.A);
             this.FailOn(() => !Station.HasPower);
             this.FailOn(() => Station.IsOccupied && Station.CurrentOccupant != pawn);
 
-            // Walk to the station
             yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.InteractionCell);
 
-            // Dock and begin repair job
             var dock = new Toil();
             dock.initAction = () =>
             {
                 if (Station.TryAcceptOccupant(pawn))
                 {
-                    // Usar injuryJob en lugar de StartJob directo
                     var repairJob = JobMaker.MakeJob(RRS_JobDefOf.RRS_RepairAtStation, Station);
                     pawn.jobs.jobQueue.EnqueueFirst(repairJob);
-                    EndJobWith(JobCondition.Succeeded); // termina el GoTo, el queue lanza el siguiente
+                    EndJobWith(JobCondition.Succeeded);
                 }
                 else
                 {

@@ -1,18 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
-
-  <!--
-    Job: El mecanoid camina hacia la repair station y se acopla.
-
-    FIX E: checkOverrideOnDamage cambiado de true a false.
-    Con true, cada golpe recibido mientras el mecanoid caminaba hacia la station
-    provocaba que RimWorld reevaluara el job, cancelando GoToRepairStation en
-    combate — exactamente cuando más se necesita la reparación. El think tree
-    le reasignaba el mismo job en el siguiente tick, creando un loop visible
-    en el log y haciendo la feature inutilizable bajo fuego enemigo.
-    false es consistente con RRS_RepairAtStation (el mecanoid ignora el daño
-    mientras navega hacia la station, igual que cuando ya está docked).
-  -->
+  <!-- Job: El mecanoid va a la estación de reparación para ser reparado -->
   <JobDef>
     <defName>RRS_GoToRepairStation</defName>
     <label>go to repair station</label>

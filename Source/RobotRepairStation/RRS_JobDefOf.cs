@@ -3,10 +3,6 @@ using Verse;
 
 namespace RobotRepairStation
 {
-    /// <summary>
-    /// Static references to JobDefs defined in XML.
-    /// RimWorld automatically populates these via [DefOf] attribute.
-    /// </summary>
     [DefOf]
     public static class RRS_JobDefOf
     {
