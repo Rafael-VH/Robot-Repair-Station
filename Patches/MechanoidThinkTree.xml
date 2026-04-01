@@ -2,20 +2,37 @@
 
 <Patch>
 
-  <!-- ── Inject repair subtree into the MechanoidConstant think tree ───── -->
-  <Operation Class="PatchOperationInsert">
-    <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]/thinkRoot/subNodes/li[@Class="ThinkNode_Priority"]/subNodes/li[@Class="ThinkNode_Subtree" and subtreeDef="MechanoidConstantCharge"][1]</xpath>
-    <order>Before</order>
-    <value>
-      <!-- Conditional: is the mechanoid damaged below the repair threshold
-           AND is there a powered, reachable repair station nearby? -->
-      <li Class="RobotRepairStation.ThinkNode_ConditionalNeedsRepair">
-        <subNodes>
-          <li Class="RobotRepairStation.JobGiver_GoToRepairStation"/>
-        </subNodes>
-      </li>
-    </value>
+  <Operation Class="PatchOperationSequence">
     <success>Always</success>
+    <operations>
+
+      <!-- Paso 1: verificar que el ThinkTree existe antes de patchear -->
+      <li Class="PatchOperationTest">
+        <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]</xpath>
+        <success>Always</success>
+      </li>
+
+      <!-- Paso 2: insertar nuestro nodo de reparación al principio de los
+           subNodes del ThinkNode_Priority raíz, para que tenga la máxima
+           prioridad junto al resto de comportamientos urgentes. -->
+      <li Class="PatchOperationInsert">
+        <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]/thinkRoot/subNodes/li[@Class="ThinkNode_Priority"]/subNodes</xpath>
+        <order>Prepend</order>
+        <value>
+          <!--
+            Condicional: ¿el mecanoid está dañado por debajo del umbral
+            Y hay una estación alcanzable con potencia?
+            Si se cumple, JobGiver_GoToRepairStation emite el job de navegación.
+          -->
+          <li Class="RobotRepairStation.ThinkNode_ConditionalNeedsRepair">
+            <subNodes>
+              <li Class="RobotRepairStation.JobGiver_GoToRepairStation"/>
+            </subNodes>
+          </li>
+        </value>
+      </li>
+
+    </operations>
   </Operation>
 
 </Patch>

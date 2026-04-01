@@ -8,14 +8,10 @@ namespace RobotRepairStation
     public class CompProperties_RobotRepairStation : CompProperties
     {
         public float repairHealthThreshold = 0.5f;
-
-        public float repairSpeedPerTick = 0.0005f;
-
-        public int steelPerRepairCycle = 1;
-
-        public int repairTickInterval = 500;
-
-        public float maxRepairRange = 30f;
+        public float repairSpeedPerTick    = 0.0005f;
+        public int   steelPerRepairCycle   = 1;
+        public int   repairTickInterval    = 500;
+        public float maxRepairRange        = 30f;
 
         public CompProperties_RobotRepairStation()
         {
@@ -35,34 +31,28 @@ namespace RobotRepairStation
         {
             base.CompTick();
 
-            if (!Station.HasPower) return;
+            if (!Station.HasPower)   return;
             if (!Station.IsOccupied) return;
 
-            var pawn = Station.CurrentOccupant;
+            Pawn pawn = Station.CurrentOccupant;
             if (pawn == null || pawn.Dead) return;
 
             if (Find.TickManager.TicksGame % Props.repairTickInterval == 0)
-            {
                 ApplyRepairTick(pawn);
-            }
         }
 
         private void ApplyRepairTick(Pawn mechanoid)
         {
             List<Hediff_Injury> injuries = mechanoid.health.hediffSet.hediffs
                 .OfType<Hediff_Injury>()
-                .Where(h => !h.IsOld())
+                .Where(h => !(h.TryGetComp<HediffComp_GetsPermanent>()?.IsPermanent ?? false))
                 .ToList();
 
             foreach (Hediff_Injury injury in injuries)
-            {
                 injury.Heal(Props.repairSpeedPerTick);
-            }
 
             if (mechanoid.health.summaryHealth.SummaryHealthPercent >= 0.99f)
-            {
                 OnRepairComplete(mechanoid);
-            }
         }
 
         private void OnRepairComplete(Pawn mechanoid)
@@ -73,7 +63,7 @@ namespace RobotRepairStation
                 MessageTypeDefOf.PositiveEvent
             );
 
-            Station.EjectOccupant();
+            Station.NotifyOccupantLeft();
         }
     }
 }

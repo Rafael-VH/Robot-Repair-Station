@@ -7,13 +7,11 @@
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
-    <!-- Output directly to the mod Assemblies folder -->
     <OutputPath>..\..\Assemblies</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
   <!-- ── RimWorld References ───────────────────────────────────────────────── -->
-  <!-- Update RIMWORLD_PATH to your local RimWorld install directory           -->
   <PropertyGroup>
     <RimWorldPath Condition="'$(RimWorldPath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\RimWorld</RimWorldPath>
   </PropertyGroup>
@@ -29,10 +27,6 @@
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

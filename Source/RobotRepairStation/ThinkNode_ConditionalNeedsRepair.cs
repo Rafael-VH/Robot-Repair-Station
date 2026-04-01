@@ -6,45 +6,28 @@ namespace RobotRepairStation
 {
     public class ThinkNode_ConditionalNeedsRepair : ThinkNode_Conditional
     {
-        [Unsaved]
-        private Pawn lastEvaluatedPawn;
-        [Unsaved]
-        private Building_RobotRepairStation cachedStation;
-
         protected override bool Satisfied(Pawn pawn)
         {
-            if (!pawn.RaceProps.IsMechanoid) return false;
-            if (pawn.Faction != Faction.OfPlayer) return false;
+            if (!pawn.RaceProps.IsMechanoid)       return false;
+            if (pawn.Faction != Faction.OfPlayer)  return false;
 
-            var station = RepairStationUtility.FindBestRepairStation(pawn);
-            lastEvaluatedPawn = pawn;
-            cachedStation = station;
+            var comp = RepairStationUtility.FindBestRepairStationComp(pawn);
+            if (comp == null) return false;
 
-            if (station == null) return false;
-
-            var comp = station.GetComp<CompRobotRepairStation>();
-            float threshold = comp?.Props.repairHealthThreshold ?? 0.5f;
-
-            return pawn.health.summaryHealth.SummaryHealthPercent < threshold;
+            return pawn.health.summaryHealth.SummaryHealthPercent < comp.Props.repairHealthThreshold;
         }
-
-        public Building_RobotRepairStation GetCachedStation(Pawn pawn) => (lastEvaluatedPawn == pawn
-        && cachedStation != null
-        && !cachedStation.Destroyed)
-        ? cachedStation
-        : null;
     }
 
     public class JobGiver_GoToRepairStation : ThinkNode_JobGiver
     {
         protected override Job TryGiveJob(Pawn pawn)
         {
-            var conditional = parent as ThinkNode_ConditionalNeedsRepair;
-            var station = conditional?.GetCachedStation(pawn)
-                       ?? RepairStationUtility.FindBestRepairStation(pawn);
+            Building_RobotRepairStation station =
+                RepairStationUtility.FindBestRepairStation(pawn);
 
             if (station == null) return null;
 
+            // Verificar que nadie más ya tiene reservada la estación.
             var reservationManager = pawn.Map?.reservationManager;
             if (reservationManager != null
                 && reservationManager.IsReservedByAnyoneOf(station, pawn.Faction)
@@ -70,7 +53,7 @@ namespace RobotRepairStation
             foreach (var station in tracker.AllStations)
             {
                 if (station == null || station.Destroyed) continue;
-                if (!station.HasPower) continue;
+                if (!station.HasPower)                    continue;
                 if (station.IsOccupied && station.CurrentOccupant != pawn) continue;
                 if (!pawn.CanReach(station, PathEndMode.InteractionCell, Danger.Deadly)) continue;
 
@@ -83,11 +66,17 @@ namespace RobotRepairStation
                 if (dist < bestDist)
                 {
                     bestDist = dist;
-                    best = station;
+                    best     = station;
                 }
             }
 
             return best;
+        }
+
+        public static CompRobotRepairStation FindBestRepairStationComp(Pawn pawn)
+        {
+            var station = FindBestRepairStation(pawn);
+            return station?.GetComp<CompRobotRepairStation>();
         }
     }
 }
