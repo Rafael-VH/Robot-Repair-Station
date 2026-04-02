@@ -1,72 +1,413 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═══════════════════════════════════════════════════════════════════════════════╗
+  ║  Defs/ThingDefs/Buildings_RobotRepairStation.xml                              ║
+  ║  Definición del edificio Robot Repair Station                                 ║
+  ╠═══════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                   ║
+  ║    Define la entidad física del edificio: apariencia, tamaño, costes de       ║
+  ║    construcción, estadísticas base y la lista de comps que le dan             ║
+  ║    comportamiento en runtime (energía, encendido, avería, reparación).        ║
+  ║                                                                               ║
+  ║  Relaciones con otros archivos:                                               ║
+  ║    - thingClass apunta a Building_RobotRepairStation.cs (C#)                  ║
+  ║    - CompProperties_RobotRepairStation se define en el mismo .cs              ║
+  ║    - researchPrerequisites referencia ResearchDefs.xml                        ║
+  ║    - La textura debe existir en Textures/Things/Buildings/                    ║
+  ╚═══════════════════════════════════════════════════════════════════════════════╝
+-->
 <Defs>
 
-  <!-- ==================== ROBOT REPAIR STATION ====================  -->
+  <!--
+    ══════════════════════════════════════════════════════════════════════════════
+    ROBOT REPAIR STATION — ThingDef principal
+    ══════════════════════════════════════════════════════════════════════════════
+
+    ParentName="BuildingBase":
+      Hereda de la definición abstracta BuildingBase, que provee valores
+      por defecto para edificios genéricos (pasabilidad, capas de altitud,
+      interacción con zonas, etc.). Los campos declarados aquí sobreescriben
+      o complementan los heredados.
+  -->
   <ThingDef ParentName="BuildingBase">
+
+    <!--
+      Identificador único de esta definición en el DefDatabase.
+      Prefijo RRS_ para evitar colisiones con otros mods.
+      Referenciado en:
+        - researchPrerequisites en ResearchDefs.xml
+        - thingClass Building_RobotRepairStation.cs
+        - JobDefs y ThinkNodes del mod
+    -->
     <defName>RRS_RobotRepairStation</defName>
+
+    <!-- Nombre visible en el juego (etiqueta en inspector, menú de construcción, etc.) -->
     <label>robot repair station</label>
+
+    <!--
+      Descripción completa que aparece en el tooltip al pasar el cursor sobre
+      el edificio en el menú de construcción y en el panel de inspección.
+      Debe explicar qué hace, cómo funciona y sus limitaciones.
+    -->
     <description>A specialized docking station that repairs damaged mechanoids. When a mechanoid's health drops below the configured threshold, it will autonomously navigate to this station and undergo automated repair using steel components. Requires a constant power supply to function.</description>
+
+    <!--
+      Clase C# que maneja la lógica del edificio en runtime.
+      Debe existir en el ensamblado compilado (Assemblies/RobotRepairStation.dll).
+      Si la clase no se encuentra al cargar, RimWorld usará Building genérico
+      y todas las funcionalidades del mod quedarán inactivas sin error visible.
+    -->
     <thingClass>RobotRepairStation.Building_RobotRepairStation</thingClass>
+
+    <!-- ── Gráficos ──────────────────────────────────────────────────────── -->
     <graphicData>
+      <!--
+        Ruta relativa a la textura, desde la carpeta Textures/ del mod.
+        RimWorld buscará: Textures/Things/Buildings/RobotRepairStation.png
+        (también acepta .jpg pero se recomienda .png para transparencia).
+        Si el archivo no existe, el edificio se renderiza con el placeholder
+        de textura faltante (cuadrado magenta), pero el mod carga sin errores.
+      -->
       <texPath>Things/Buildings/RobotRepairStation</texPath>
+
+      <!--
+        Graphic_Single: una sola textura estática sin variantes de rotación.
+        Alternativas comunes:
+          - Graphic_Multi: cuatro texturas para cada rotación cardinal (N/S/E/O).
+          - Graphic_Random: elige aleatoriamente entre varias texturas al colocar.
+        Se usa Single porque la estación es simétrica y no necesita rotación.
+      -->
       <graphicClass>Graphic_Single</graphicClass>
+
+      <!--
+        Tamaño de renderizado en tiles (unidades de mapa).
+        (2,2) = ocupa visualmente 2×2 tiles, consistente con el <size> del edificio.
+        NOTA: drawSize y size deben coincidir para evitar que la textura se
+        recorte o desborde los límites del edificio.
+      -->
       <drawSize>(2,2)</drawSize>
+
+      <!--
+        Sombra proyectada en el suelo debajo del edificio.
+        volume: dimensiones del volumen que proyecta la sombra (ancho, alto, profundidad).
+        offset: desplazamiento del centro de la sombra respecto al origen del edificio.
+        El offset negativo en Z (sur) centra la sombra visualmente bajo el edificio.
+      -->
       <shadowData>
         <volume>(1.8, 0.5, 1.0)</volume>
         <offset>(0, 0, -0.4)</offset>
       </shadowData>
     </graphicData>
+
+    <!--
+      Capa de altitud de renderizado.
+      "Building" sitúa el edificio por encima del suelo y objetos en el suelo,
+      pero por debajo de pawns y proyectiles. Correcto para la mayoría de edificios.
+    -->
     <altitudeLayer>Building</altitudeLayer>
+
+    <!--
+      Define cómo interactúan los pawns con el espacio que ocupa el edificio.
+      PassThroughOnly: los pawns pueden atravesar el edificio pero con penalización
+      de velocidad. Permite a los mecanoides acercarse a la celda de interacción
+      incluso si hay otro pawn bloqueando parte del edificio.
+      Alternativas: Impassable (bloqueo total), Standable (sin penalización).
+    -->
     <passability>PassThroughOnly</passability>
+
+    <!--
+      false: el edificio no bloquea el viento (relevante para temperatura y
+      dispersión de gas). Apropiado para una estructura abierta/mecánica.
+    -->
     <blockWind>false</blockWind>
+
+    <!--
+      true: proyecta sombras en los bordes del edificio para dar profundidad visual.
+      Recomendado para edificios grandes que ocupan múltiples tiles.
+    -->
     <castEdgeShadows>true</castEdgeShadows>
+
+    <!--
+      Porcentaje del tile que ocupa el edificio visualmente (0.0 - 1.0).
+      0.4 = ocupa el 40% del espacio visible, dejando 60% de "aire".
+      Afecta cómo se calcula el bloqueo visual y la cobertura en combate.
+    -->
     <fillPercent>0.4</fillPercent>
+
+    <!--
+      false: el edificio no puede solaparse con zonas de almacenamiento, cultivo, etc.
+      Correcto para edificios que requieren un espacio exclusivo en el mapa.
+    -->
     <canOverlapZones>false</canOverlapZones>
+
+    <!-- ── Estadísticas base ────────────────────────────────────────────── -->
     <statBases>
+      <!-- Puntos de vida del edificio. 300 HP lo hace resistente pero destruible. -->
       <MaxHitPoints>300</MaxHitPoints>
+
+      <!--
+        Trabajo requerido para construir el edificio (en ticks de trabajo).
+        4000 ticks ≈ 16.7 segundos a velocidad ×1 con habilidad de construcción 0.
+        Un constructor con habilidad alta puede reducirlo considerablemente.
+      -->
       <WorkToBuild>4000</WorkToBuild>
+
+      <!--
+        Multiplicador de probabilidad de incendio (0.0 = ignífugo, 1.0 = normal).
+        0.5 = la mitad de probabilidad de arder respecto a un edificio de madera.
+        Apropiado para un edificio metálico con componentes electrónicos.
+      -->
       <Flammability>0.5</Flammability>
+
+      <!--
+        Modificador estético del entorno (-∞ = muy feo, +∞ = muy bonito).
+        -2: ligeramente negativo (maquinaria industrial, ruido visual).
+        Los colonos pueden sufrir un pequeño penalizador de estado de ánimo
+        si trabajan o viven cerca de objetos feos.
+      -->
       <Beauty>-2</Beauty>
     </statBases>
+
+    <!--
+      Tipo de ticker que determina con qué frecuencia se llama al método Tick()
+      del edificio:
+        - Normal:  cada tick (60 veces/segundo a ×1). Necesario para el consumo
+                   de acero y la lógica de curación tick a tick.
+        - Rare:    cada 250 ticks (~4.2 segundos). Sería insuficiente para la
+                   granularidad de reparación que necesitamos.
+        - Never:   sin tick. Solo para edificios puramente pasivos.
+      Se usa Normal porque Building_RobotRepairStation.Tick() debe ejecutarse
+      frecuentemente para respetar repairTickInterval con precisión.
+    -->
     <tickerType>Normal</tickerType>
+
+    <!--
+      Tamaño en tiles que ocupa el edificio en el mapa.
+      (2,2) = 2 tiles de ancho × 2 tiles de alto.
+      Debe coincidir con drawSize en graphicData para que gráficos y colisión
+      estén alineados.
+    -->
     <size>(2,2)</size>
+
+    <!-- ── Coste de construcción ────────────────────────────────────────── -->
+    <!--
+      Materiales necesarios para construir el edificio.
+      Se devuelven parcialmente al deconstruir (según la eficiencia configurada
+      en las opciones de juego).
+
+      Desglose del coste:
+        - Steel 150:             estructura metálica principal del edificio.
+        - ComponentIndustrial 4: componentes electrónicos básicos para el sistema
+                                 de diagnóstico y la interfaz de energía.
+        - ComponentSpacer 1:     componente avanzado que justifica el requisito
+                                 de investigación Spacer-tier y da valor al edificio.
+
+      Ajustar estos valores modifica el "coste de entrada" del mod.
+      Valores muy bajos pueden trivializar la mecánica; muy altos pueden hacerla
+      poco atractiva en el mid-game.
+    -->
     <costList>
       <Steel>150</Steel>
       <ComponentIndustrial>4</ComponentIndustrial>
       <ComponentSpacer>1</ComponentSpacer>
     </costList>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         COMPS — Componentes de comportamiento adjuntos al edificio
+         ══════════════════════════════════════════════════════════════════════
+         Los comps son el sistema modular de RimWorld para añadir comportamientos
+         reutilizables a ThingDefs. Cada <li> instancia un comp diferente.
+         El orden de los comps en esta lista no afecta al comportamiento,
+         pero se recomienda mantener los comps de infraestructura (energía,
+         encendido) antes que los comps de lógica propia del mod.
+    -->
     <comps>
+
+      <!--
+        CompPowerTrader: gestiona la conexión a la red eléctrica del mapa.
+        El edificio requiere energía para funcionar; sin ella, HasPower = false
+        y toda la lógica de reparación se detiene.
+
+        basePowerConsumption: vatios consumidos cuando el edificio está activo.
+        250W es un consumo moderado-alto, comparable a una gran batería o
+        un fabricador industrial. Justificado por el procesado continuo de
+        diagnóstico y reparación.
+
+        shortCircuitInRain: false → el edificio NO causa cortocircuitos bajo
+        la lluvia. Apropiado si el edificio se concibe como sellado/resistente
+        al agua. Cambiar a true para más realismo si se añade techo obligatorio.
+      -->
       <li Class="CompProperties_Power">
         <compClass>CompPowerTrader</compClass>
         <basePowerConsumption>250</basePowerConsumption>
         <shortCircuitInRain>false</shortCircuitInRain>
       </li>
+
+      <!--
+        CompFlickable: añade el interruptor de encendido/apagado manual.
+        Permite al jugador desactivar la estación sin desconectarla de la red
+        eléctrica, útil para gestionar prioridades de reparación cuando hay
+        múltiples estaciones.
+        No requiere configuración adicional; el comp base gestiona todo.
+      -->
       <li Class="CompProperties_Flickable"/>
+
+      <!--
+        CompBreakdownable: el edificio puede averiarse con el tiempo si no se
+        realiza mantenimiento. Cuando se avería, deja de funcionar hasta que un
+        colono lo repara con la tarea "Repair".
+        Añade realismo y una razón para mantener colonos con habilidad de
+        construcción. Sin este comp, el edificio nunca se averiaría.
+      -->
       <li Class="CompProperties_Breakdownable"/>
+
+      <!--
+        CompProperties_RobotRepairStation: comp propio del mod.
+        Definido en Source/RobotRepairStation/CompProperties_RobotRepairStation.cs.
+        Gestiona la lógica de reparación tick a tick y expone los parámetros
+        configurables que se ajustan aquí en el XML.
+
+        Todos los valores aquí son los VALORES POR DEFECTO del mod.
+        Los modders o jugadores avanzados pueden editarlos aquí para balancear
+        el mod según sus preferencias sin tocar el código C#.
+      -->
       <li Class="RobotRepairStation.CompProperties_RobotRepairStation">
+
+        <!--
+          Fracción de salud (0.0 - 1.0) por debajo de la cual el mecanoid
+          buscará activamente esta estación.
+          0.5 = 50% de salud → el mecanoid se va a reparar cuando está a mitad
+          de salud. Reducir a 0.3 haría que solo busque reparación en estado
+          crítico; aumentar a 0.8 lo haría más proactivo.
+        -->
         <repairHealthThreshold>0.5</repairHealthThreshold>
+
+        <!--
+          Salud restaurada por tick de juego a cada lesión activa mientras el
+          mecanoid está en la estación.
+          0.0005 HP/tick × 500 ticks (repairTickInterval) = 0.25 HP por ciclo.
+          Con lesiones típicas de 5-20 HP, un ciclo completo de reparación dura
+          entre 20 y 80 ciclos × 500 ticks = 10.000 - 40.000 ticks
+          (~2.8 - 11.1 horas de juego a velocidad ×1).
+          Aumentar este valor acelera la reparación pero puede hacer el mod
+          demasiado permisivo en combate.
+        -->
         <repairSpeedPerTick>0.0005</repairSpeedPerTick>
+
+        <!--
+          Unidades de acero consumidas por cada ciclo de reparación.
+          1 unidad cada 500 ticks = ~7.2 unidades de acero por hora de juego.
+          Con una pila estándar de 75 acero, la estación puede reparar durante
+          ~10 horas de juego antes de necesitar reabastecimiento.
+          Aumentar este valor hace la reparación más costosa en recursos.
+        -->
         <steelPerRepairCycle>1</steelPerRepairCycle>
+
+        <!--
+          Número de ticks entre cada ciclo de consumo de acero Y de curación.
+          500 ticks ≈ 8.3 segundos a velocidad ×1.
+          Este valor controla la "resolución" de la reparación:
+            - Valores bajos (100-200): más granular, mayor carga de CPU.
+            - Valores altos (1000+): menos granular, puede sentirse "a saltos".
+          500 es un buen equilibrio entre suavidad y rendimiento.
+          NOTA: repairSpeedPerTick se aplica dentro de este intervalo, por lo
+          que cambiar repairTickInterval sin ajustar repairSpeedPerTick modifica
+          la velocidad total de curación. Ver fórmula en repairSpeedPerTick.
+        -->
         <repairTickInterval>500</repairTickInterval>
+
+        <!--
+          Distancia máxima en celdas (tiles) a la que un mecanoid puede detectar
+          y navegar hacia esta estación.
+          30 celdas ≈ diámetro de una base mediana.
+          Valores mayores permiten que mecanoides en zonas de combate distantes
+          regresen a repararse, pero pueden causar comportamientos inesperados
+          (mecanoides atravesando toda la base para repararse).
+          Si se colocan múltiples estaciones, este rango debería dimensionarse
+          para que cada estación cubra su zona de influencia sin solapamientos
+          excesivos.
+        -->
         <maxRepairRange>30</maxRepairRange>
+
       </li>
     </comps>
+
+    <!-- ── Configuración de edificio ────────────────────────────────────── -->
     <building>
+      <!--
+        false: la IA de colonos/mecanoides no considerará este edificio como
+        destino de descanso o espera (no es un "chill destination").
+        Necesario para que los mecanoides no vayan aquí voluntariamente sin
+        el job RRS_GoToRepairStation siendo emitido por el ThinkTree.
+      -->
       <ai_chillDestination>false</ai_chillDestination>
+
+      <!--
+        true: los objetos colocados encima de este edificio no se deterioran
+        por el paso del tiempo. Relevante si alguna vez se coloca algo sobre
+        la estación durante el juego (p.ej. por mods de terceros).
+      -->
       <preventDeteriorationOnTop>true</preventDeteriorationOnTop>
     </building>
+
+    <!-- ── Place Workers ────────────────────────────────────────────────── -->
+    <!--
+      Lista de PlaceWorkers que validan/visualizan el emplazamiento del edificio.
+      PlaceWorker_ShowFacilitiesConnections: muestra líneas de conexión hacia
+      las instalaciones afectadas al colocar el edificio (útil si en el futuro
+      se añaden facilidades como BuffTable o MultiAnalyzer que potencien la
+      estación). Por ahora no tiene efecto visible pero es buena práctica
+      incluirlo para escalabilidad.
+    -->
     <placeWorkers>
       <li>PlaceWorker_ShowFacilitiesConnections</li>
     </placeWorkers>
+
+    <!-- ── Requisitos de investigación ─────────────────────────────────── -->
+    <!--
+      Lista de ResearchProjectDefs que deben completarse antes de que el
+      edificio aparezca disponible en el menú de construcción del Architect.
+      RRS_RobotRepairResearch está definida en Defs/ThingDefs/ResearchDefs.xml.
+      Sin esta investigación completada, el edificio no será visible ni
+      construible, incluso si el mod está activo.
+    -->
     <researchPrerequisites>
       <li>RRS_RobotRepairResearch</li>
     </researchPrerequisites>
+
+    <!--
+      Categoría del menú Architect donde aparece el edificio.
+      "Misc" agrupa objetos que no encajan en categorías específicas
+      (Production, Furniture, Security, etc.).
+      Si en el futuro se crea una categoría personalizada "Mechanoids",
+      cambiar este valor y añadir la DesignationCategoryDef correspondiente.
+    -->
     <designationCategory>Misc</designationCategory>
+
+    <!--
+      Orden de aparición dentro de la categoría del menú Architect.
+      Valores más bajos aparecen primero. 2800 coloca la estación al final
+      de la categoría Misc, junto a otros edificios avanzados.
+    -->
     <uiOrder>2800</uiOrder>
+
+    <!--
+      Permite que el edificio sea minificado (recogido y transportado como ítem).
+      MinifiedThing es el ThingDef de contenedor genérico de RimWorld para
+      edificios recogidos. Sin esta línea, el edificio no se puede desinstalar
+      y transportar a otro mapa o base.
+    -->
     <minifiedDef>MinifiedThing</minifiedDef>
+
+    <!--
+      Categorías de ítem a las que pertenece el edificio cuando está minificado.
+      BuildingsMisc hace que aparezca en zonas de almacenamiento configuradas
+      para guardar edificios misceláneos.
+    -->
     <thingCategories>
       <li>BuildingsMisc</li>
     </thingCategories>
+
   </ThingDef>
 
 </Defs>

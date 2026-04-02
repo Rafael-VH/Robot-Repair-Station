@@ -1,28 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════╗
+  ║  Defs/JobDefs/JobDefs_RobotRepair.xml                                       ║
+  ║  Definición de los jobs del sistema de reparación de mecanoides             ║
+  ╠═════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                 ║
+  ║    Los JobDefs son los "tipos de tarea" del sistema de IA de RimWorld.      ║
+  ║    Este archivo declara los dos jobs que componen el flujo de reparación:   ║
+  ║      1. RRS_GoToRepairStation:  el mecanoid navega hacia la estación.       ║
+  ║      2. RRS_RepairAtStation:    el mecanoid permanece en la estación        ║
+  ║                                 mientras se repara.                         ║
+  ║                                                                             ║
+  ║  Relaciones con otros archivos:                                             ║
+  ║    - driverClass apunta a las clases C# en Source/:                         ║
+  ║        JobDriver_GoToRepairStation.cs                                       ║
+  ║        JobDriver_RepairAtStation.cs                                         ║
+  ║    - defName referenciado en:                                               ║
+  ║        RRS_JobDefOf.cs (inyección automática de DefOf)                      ║
+  ║        ThinkNode_ConditionalNeedsRepair.cs (emisión del job)                ║
+  ║        Building_RobotRepairStation.cs (validación post-carga)               ║
+  ╚═════════════════════════════════════════════════════════════════════════════╝
+-->
 <Defs>
-  <!-- Job: El mecanoid va a la estación de reparación para ser reparado -->
+
+  <!--
+    ══════════════════════════════════════════════════════════════════════════════
+    JOB 1: RRS_GoToRepairStation — Navegación hacia la estación
+    ══════════════════════════════════════════════════════════════════════════════
+    Este job se emite desde JobGiver_GoToRepairStation (ThinkNode_ConditionalNeedsRepair.cs)
+    cuando el ThinkTree detecta que un mecanoid necesita reparación y hay una
+    estación disponible.
+
+    Flujo completo del job:
+      1. El JobGiver crea el job con la estación como targetA.
+      2. JobDriver_GoToRepairStation.MakeNewToils() genera dos toils:
+           a) GotoThing → el mecanoid camina a la celda de interacción.
+           b) dock (Instant) → intenta ocupar la estación y encola RRS_RepairAtStation.
+      3. Al completarse, el mecanoid ya está registrado en la estación y el
+         siguiente job en cola (RRS_RepairAtStation) comienza automáticamente.
+  -->
   <JobDef>
+
+    <!--
+      Identificador único del job en el DefDatabase.
+      Referenciado en RRS_JobDefOf.cs como campo estático inyectado por [DefOf].
+    -->
     <defName>RRS_GoToRepairStation</defName>
+
+    <!-- Etiqueta corta visible en el panel de actividad del pawn seleccionado. -->
     <label>go to repair station</label>
+
+    <!-- Descripción del job para el jugador (aparece en algunos tooltips). -->
     <description>Go to a robot repair station for self-repair.</description>
+
+    <!--
+      Clase C# que implementa la lógica del job (los toils).
+      Debe existir en el ensamblado compilado con el namespace completo.
+      Si la clase no se encuentra, el job fallará silenciosamente al intentar
+      ejecutarse y el mecanoid quedará sin hacer nada.
+    -->
     <driverClass>RobotRepairStation.JobDriver_GoToRepairStation</driverClass>
+
+    <!--
+      Cadena de texto mostrada en el panel de actividad del pawn cuando ejecuta
+      este job. Aparece en la columna "Activity" de la barra inferior.
+      Se recomienda una frase corta en gerundio ("going to...").
+    -->
     <reportString>going to repair station.</reportString>
+
+    <!--
+      false: no se permite que este job se combine con un job de oportunidad
+      previo (p.ej. recoger un ítem de camino a otro destino).
+      Los mecanoides no deben detenerse a hacer tareas oportunistas mientras
+      van a repararse; un mecanoid dañado debe ir directamente a la estación.
+    -->
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
+
+    <!--
+      true: el jugador puede interrumpir este job manualmente seleccionando
+      el mecanoid y dando órdenes directas (p.ej. "Draft").
+      Permite al jugador redirigir mecanoides en situaciones de combate urgente,
+      aunque esto interrumpirá la reparación.
+    -->
     <playerInterruptible>true</playerInterruptible>
+
+    <!--
+      false: el job NO se interrumpe automáticamente cuando el pawn recibe daño.
+      Normalmente los jobs se anulan cuando el pawn es atacado, pero un mecanoid
+      que navega hacia la estación de reparación ya está dañado; interrumpirlo
+      por daño crearía un bucle donde nunca llega a repararse.
+      La interrupción manual del jugador sigue siendo posible (playerInterruptible=true).
+    -->
     <checkOverrideOnDamage>false</checkOverrideOnDamage>
+
   </JobDef>
 
-  <!-- Job: El mecanoid está docked y siendo reparado -->
+
+  <!--
+    ══════════════════════════════════════════════════════════════════════════════
+    JOB 2: RRS_RepairAtStation — Reparación activa en la estación
+    ══════════════════════════════════════════════════════════════════════════════
+    Este job es encolado por JobDriver_GoToRepairStation cuando el mecanoid
+    llega exitosamente a la estación y se registra como ocupante.
+
+    Flujo completo del job:
+      1. JobDriver_GoToRepairStation encola este job con EnqueueFirst.
+      2. JobDriver_RepairAtStation.MakeNewToils() genera un toil de espera
+         indefinida (ToilCompleteMode.Never).
+      3. Durante la espera:
+           - CompRobotRepairStation.CompTick() aplica curación cada repairTickInterval.
+           - Building_RobotRepairStation.Tick() consume acero cada repairTickInterval.
+      4. El job termina cuando CurrentOccupant se pone a null:
+           - Reparación completa → CompRobotRepairStation.OnRepairComplete()
+             → Building_RobotRepairStation.NotifyOccupantLeft() → null.
+           - Expulsión forzada → Building_RobotRepairStation.EjectOccupant() → null.
+      5. El driver detecta el null en su tickAction y llama EndJobWith(Succeeded).
+  -->
   <JobDef>
+
     <defName>RRS_RepairAtStation</defName>
     <label>repairing at station</label>
     <description>Being repaired at the robot repair station.</description>
+
     <driverClass>RobotRepairStation.JobDriver_RepairAtStation</driverClass>
+
     <reportString>repairing at station.</reportString>
+
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
+
+    <!--
+      true: el jugador puede interrumpir manualmente la reparación activa.
+      Permite retirar un mecanoid de la estación si se necesita urgentemente
+      para combate, aunque perderá el progreso de reparación del ciclo actual.
+    -->
     <playerInterruptible>true</playerInterruptible>
+
+    <!--
+      false: el job no se interrumpe por daño recibido durante la reparación.
+      Un mecanoid siendo reparado puede recibir daño si la base está bajo ataque;
+      interrumpirlo por ese motivo sería contraproducente: el mecanoid abandona
+      la estación dañado, sin haber completado la reparación.
+      El jugador puede interrumpirlo manualmente (playerInterruptible=true) si
+      necesita que el mecanoid defienda la base.
+      NOTA: JobDriver_RepairAtStation.Notify_DamageTaken() está vacío a propósito
+      para documentar explícitamente esta decisión de diseño.
+    -->
     <checkOverrideOnDamage>false</checkOverrideOnDamage>
+
+    <!--
+      false: el job no puede ser interrumpido por otros jobs "casuales" de la IA
+      (p.ej. investigar un sonido, explorar una zona nueva).
+      Garantiza que el mecanoid permanezca en la estación hasta completar la
+      reparación o ser expulsado explícitamente, sin que la IA lo distraiga.
+      Diferencia clave respecto a playerInterruptible: este flag afecta a la IA
+      autónoma; playerInterruptible afecta a las órdenes manuales del jugador.
+    -->
     <casualInterruptible>false</casualInterruptible>
+
   </JobDef>
 
 </Defs>

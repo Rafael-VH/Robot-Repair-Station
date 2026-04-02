@@ -1,18 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════╗
+  ║  Defs/ThingDefs/ResearchDefs.xml                                            ║
+  ║  Proyecto de investigación para desbloquear el Robot Repair Station         ║
+  ╠═════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                 ║
+  ║    Define el nodo de investigación "Mechanoid Repair Systems" en el árbol   ║
+  ║    de tecnología del juego. Completar esta investigación es el requisito    ║
+  ║    previo para construir el edificio RRS_RobotRepairStation.                ║
+  ║                                                                             ║
+  ║  Relaciones con otros archivos:                                             ║
+  ║    - defName referenciado en Buildings_RobotRepairStation.xml               ║
+  ║      (campo <researchPrerequisites>)                                        ║
+  ║    - prerequisites apunta a "MechanoidBasics", investigación del DLC        ║
+  ║      BioTech que desbloquea la creación básica de mecanoides                ║
+  ╚═════════════════════════════════════════════════════════════════════════════╝
+-->
 <Defs>
 
+  <!--
+    ══════════════════════════════════════════════════════════════════════════════
+    MECHANOID REPAIR SYSTEMS — ResearchProjectDef
+    ══════════════════════════════════════════════════════════════════════════════
+    Un ResearchProjectDef define un nodo en el árbol de tecnología del juego.
+    Los nodos son visibles en la pestaña Research y se investigan usando una
+    mesa de trabajo (Research Bench / Hi-Tech Research Bench).
+  -->
   <ResearchProjectDef>
+
+    <!--
+      Identificador único de la investigación en el DefDatabase.
+      Prefijo RRS_ para evitar colisiones con otros mods.
+      Referenciado en Buildings_RobotRepairStation.xml como prerequisito de
+      construcción del edificio.
+    -->
     <defName>RRS_RobotRepairResearch</defName>
+
+    <!--
+      Nombre visible en el árbol de tecnología y en los tooltips.
+      Se muestra en minúsculas por convención de RimWorld para nombres de
+      investigaciones (el juego capitaliza automáticamente en algunos contextos).
+    -->
     <label>mechanoid repair systems</label>
+
+    <!--
+      Descripción completa del proyecto de investigación.
+      Aparece en el tooltip al pasar el cursor sobre el nodo en el árbol de
+      tecnología. Debe explicar qué se está investigando y qué se desbloquea
+      al completarlo. Uso de segunda persona implícita ("Develop...") es
+      consistente con el estilo narrativo de RimWorld.
+    -->
     <description>Develop automated repair systems capable of diagnosing and restoring damaged mechanoids. Unlocks the Robot Repair Station, which allows mechanoids to self-repair when their health is critically low.</description>
+
+    <!--
+      Coste base de investigación en puntos de investigación.
+      1200 puntos es un coste de gama media-alta para una tecnología Spacer:
+        - Investigaciones básicas:   300-600 puntos.
+        - Investigaciones medias:    600-1200 puntos.
+        - Investigaciones avanzadas: 1200-4000 puntos.
+      1200 justifica que el jugador invierta tiempo significativo antes de
+      obtener reparación automática, sin ser tan caro que desincentive su uso.
+      NOTA: el coste real puede modificarse según el multiplicador de velocidad
+      de investigación configurado en las opciones de la partida.
+    -->
     <baseCost>1200</baseCost>
+
+    <!--
+      Nivel tecnológico requerido para investigar este proyecto.
+      Spacer es el cuarto nivel de tecnología en RimWorld:
+        Neolithic → Medieval → Industrial → Spacer → Ultra → Archotech
+      Spacer requiere una Hi-Tech Research Bench para investigar.
+      Es el nivel apropiado para tecnología de reparación de mecanoides,
+      consistente con otras investigaciones del DLC BioTech relacionadas
+      con mecanoides avanzados.
+    -->
     <techLevel>Spacer</techLevel>
+
+    <!--
+      Lista de investigaciones que deben completarse ANTES de que este
+      proyecto esté disponible para investigar.
+
+      MechanoidBasics:
+        Investigación del DLC BioTech que desbloquea la mecanoide básica
+        (creación de mecanoides, comandos básicos). Es el prerrequisito
+        lógico para "reparación de mecanoides": primero el jugador aprende
+        a crear mecanoides, luego aprende a repararlos automáticamente.
+        Si BioTech no está activo, esta investigación no existe y RimWorld
+        mostrará un error en el log; por eso About.xml declara BioTech como
+        dependencia obligatoria.
+    -->
     <prerequisites>
       <li>MechanoidBasics</li>
     </prerequisites>
+
+    <!--
+      Coordenadas de posición del nodo en el árbol de tecnología visual.
+      El árbol de tecnología usa un sistema de coordenadas flotantes donde:
+        X: posición horizontal (columna). Valores más altos = más a la derecha.
+        Y: posición vertical (fila). Valores más altos = más abajo.
+
+      researchViewX=12.0, researchViewY=4.5:
+        Posiciona la investigación en la zona Spacer del árbol, a la derecha
+        de MechanoidBasics, en una fila intermedia de la sección de BioTech.
+        Ajustar estos valores si hay colisiones visuales con otras
+        investigaciones de BioTech o de otros mods en el árbol.
+
+      CONSEJO: abrir el árbol de investigación en el juego con el mod activo
+      y ajustar estos valores hasta encontrar un emplazamiento sin solapamientos.
+    -->
     <researchViewX>12.0</researchViewX>
     <researchViewY>4.5</researchViewY>
+
+    <!--
+      Pestaña del árbol de tecnología donde aparece este nodo.
+      "Biotech" agrupa todas las investigaciones relacionadas con el DLC BioTech
+      (mecanoides, genes, xenotipos, etc.).
+      Colocar la investigación en esta pestaña hace que sea fácilmente localizable
+      por jugadores que buscan mejoras de mecanoides.
+      Si esta pestaña no existe (BioTech no activo), el nodo puede no mostrarse
+      correctamente, de ahí la dependencia obligatoria en About.xml.
+    -->
     <tab>Biotech</tab>
+
   </ResearchProjectDef>
 
 </Defs>

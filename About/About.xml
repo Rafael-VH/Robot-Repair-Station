@@ -1,8 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════╗
+  ║  About/About.xml  —  Metadatos del mod Robot Repair Station                 ║
+  ╠═════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                 ║
+  ║    Este archivo es leído por el launcher de RimWorld (y por Steam Workshop) ║
+  ║    para identificar el mod, mostrar su descripción en el gestor de mods,    ║
+  ║    resolver dependencias y determinar si es compatible con la versión       ║
+  ║    instalada del juego.                                                     ║
+  ║                                                                             ║
+  ║  IMPORTANTE — packageId:                                                    ║
+  ║    El packageId es el identificador único del mod en todo el ecosistema de  ║
+  ║    RimWorld. Una vez publicado en Steam Workshop NO debe cambiarse, porque  ║
+  ║    rompe la detección de duplicados y la resolución de dependencias en      ║
+  ║    partidas de otros jugadores.                                             ║
+  ║                                                                             ║
+  ║  IMPORTANTE — supportedVersions:                                            ║
+  ║    Solo incluye versiones con las que el mod ha sido probado y funciona.    ║
+  ║    Añadir versiones sin probar puede provocar errores silenciosos en        ║
+  ║    partidas de jugadores con versiones distintas.                           ║
+  ╚═════════════════════════════════════════════════════════════════════════════╝
+-->
 <ModMetaData>
+
+  <!--
+    Nombre visible del mod en el gestor de mods de RimWorld y en Steam Workshop.
+    Se recomienda que sea conciso, descriptivo y único para facilitar la búsqueda.
+  -->
   <name>Robot Repair Station</name>
+
+  <!--
+    Nombre del autor o equipo que aparecerá en el gestor de mods y en la página
+    de Steam Workshop. Puede ser un nombre de usuario o un alias.
+  -->
   <author>RexThar</author>
+
+  <!--
+    Identificador único global del mod. Formato: "AutorOEquipo.NombreMod".
+    - Debe ser único entre todos los mods instalados.
+    - Solo se permiten caracteres alfanuméricos, puntos y guiones bajos.
+    - NO cambiar tras la publicación en Steam Workshop.
+    - RimWorld usa este ID para detectar mods duplicados y resolver dependencias.
+  -->
   <packageId>RexThar.RobotRepairStation</packageId>
+
+  <!--
+    Descripción completa que se muestra en el gestor de mods del juego y en la
+    página de Steam Workshop. Se admiten saltos de línea simples.
+
+    Buenas prácticas:
+    - Describir la funcionalidad principal en la primera línea (resumen).
+    - Listar características clave con viñetas o líneas breves.
+    - Mencionar limitaciones conocidas (aquí: no regenera partes perdidas).
+    - Indicar requisitos (DLC, otros mods) aunque ya estén en modDependencies.
+  -->
   <description>
     Adds a Robot Repair Station for BioTech mechanoids.
 
@@ -12,17 +63,65 @@
 
     Requires Biotech DLC.
   </description>
+
+  <!--
+    Lista de versiones de RimWorld con las que este mod es compatible.
+    RimWorld muestra una advertencia de incompatibilidad si la versión instalada
+    del juego no aparece aquí.
+
+    Formato de versión: "MAJOR.MINOR" (p.ej. "1.5", "1.6").
+    - Solo listar versiones en las que el mod ha sido probado y funciona.
+    - Este mod se desarrolla y prueba exclusivamente en RimWorld 1.6.
+  -->
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
+
+  <!--
+    Dependencias obligatorias que RimWorld verificará antes de cargar el mod.
+    Si alguna dependencia no está activa, el juego mostrará un aviso al jugador
+    y ofrecerá activarla automáticamente (si está disponible).
+
+    Cada <li> describe una dependencia con tres campos:
+      - packageId:        ID único del mod/DLC requerido.
+      - displayName:      Nombre visible para el jugador en el aviso.
+      - steamWorkshopUrl: URL directa a la página de Steam Workshop del mod
+                          (para que el jugador pueda suscribirse fácilmente).
+                          Formato: "steam://url/CommunityFilePage/<AppID>"
+
+    Este mod requiere el DLC BioTech porque:
+    - Usa el ThinkTree "MechanoidConstant" que solo existe con BioTech activo.
+    - Los mecanoides controlados por el jugador solo existen con BioTech.
+    - Sin BioTech, el XML patch de MechanoidThinkTree.xml no encontraría el nodo
+      objetivo y el mod quedaría sin efecto (o generaría errores en el log).
+  -->
   <modDependencies>
     <li>
       <packageId>Ludeon.RimWorld.Biotech</packageId>
       <displayName>Biotech</displayName>
+      <!--
+        AppID 1826140149 corresponde al DLC BioTech en Steam.
+        Permite al jugador ir directamente a la tienda si no lo tiene instalado.
+      -->
       <steamWorkshopUrl>steam://url/CommunityFilePage/1826140149</steamWorkshopUrl>
     </li>
   </modDependencies>
+
+  <!--
+    Lista de mods/DLCs que deben cargarse ANTES que este mod.
+    A diferencia de <modDependencies>, <loadAfter> no es un requisito obligatorio;
+    solo garantiza el orden de carga cuando el mod listado está presente.
+
+    Por qué cargar después de BioTech:
+    - El XML patch en Patches/MechanoidThinkTree.xml modifica el ThinkTree
+      "MechanoidConstant", que es definido por el DLC BioTech.
+    - Si este mod se cargara antes, el patch intentaría modificar un Def que
+      aún no existe en el DefDatabase, causando un fallo silencioso o un error.
+    - Al garantizar que BioTech se carga primero, el Def ya está registrado
+      cuando nuestro patch se aplica.
+  -->
   <loadAfter>
     <li>Ludeon.RimWorld.Biotech</li>
   </loadAfter>
+
 </ModMetaData>

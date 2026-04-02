@@ -1,34 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
-
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════════════╗
+  ║  Patches/MechanoidThinkTree.xml                                                     ║
+  ║  Patch XML que inyecta el nodo de reparación en el ThinkTree de mecanoides          ║
+  ╠═════════════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                         ║
+  ║    Modifica el ThinkTree "MechanoidConstant" del DLC BioTech para añadir            ║
+  ║    un nodo condicional de reparación al principio de la lista de nodos de           ║
+  ║    alta prioridad. Esto hace que los mecanoides del jugador evalúen                 ║
+  ║    automáticamente si necesitan ir a repararse en cada ciclo de IA.                 ║
+  ║                                                                                     ║
+  ║  ¿Qué es un ThinkTree?                                                              ║
+  ║    El sistema de IA de RimWorld usa árboles de comportamiento (ThinkTrees).         ║
+  ║    Cada pawn tiene uno o más ThinkTrees asignados. En cada ciclo de IA,             ║
+  ║    el árbol se recorre de arriba a abajo hasta que un nodo emite un job.            ║
+  ║    Los nodos más arriba en el árbol tienen mayor prioridad.                         ║
+  ║                                                                                     ║
+  ║  ¿Por qué patchear en lugar de definir un ThinkTree propio?                         ║
+  ║    Los mecanoides de BioTech tienen ya un ThinkTree complejo con docenas            ║
+  ║    de comportamientos. Crear un ThinkTree desde cero requeriría replicar            ║
+  ║    toda esa lógica. El patch XML permite insertar solo el nodo nuevo sin            ║
+  ║    tocar el resto del comportamiento del mecanoid.                                  ║
+  ║                                                                                     ║
+  ║  RIESGO DE COMPATIBILIDAD CON RIMWORLD 1.6:                                         ║
+  ║    Ludeon puede reestructurar el ThinkTree MechanoidConstant en cualquier           ║
+  ║    actualización. Si el XPath del Paso 2 deja de coincidir con la                   ║
+  ║    estructura real del árbol, el patch se aplicará en el nodo incorrecto            ║
+  ║    o no se aplicará en absoluto. Verificar contra el árbol real después             ║
+  ║    de cada actualización de RimWorld.                                               ║
+  ║                                                                                     ║
+  ║  Relaciones con otros archivos:                                                     ║
+  ║    - Inyecta ThinkNode_ConditionalNeedsRepair (ThinkNode_ConditionalNeedsRepair.cs) ║
+  ║    - Inyecta JobGiver_GoToRepairStation (ThinkNode_ConditionalNeedsRepair.cs)       ║
+  ║    - Requiere que BioTech esté cargado antes (ver About.xml → loadAfter)            ║
+  ╚═════════════════════════════════════════════════════════════════════════════════════╝
+-->
 <Patch>
 
+  <!--
+    PatchOperationSequence: ejecuta una lista de operaciones en orden.
+    Si una operación falla y success="Always", las siguientes se siguen
+    ejecutando. Esto permite que Paso 1 (verificación) falle sin detener
+    Paso 2 (inserción), aunque en la práctica queremos que ambos tengan éxito.
+
+    success="Always":
+      La secuencia completa se considera "exitosa" independientemente de si
+      las operaciones internas fallan. Esto evita que RimWorld registre el
+      patch como fallido en el log si, p.ej., BioTech no está activo.
+      CONSEJO: cambiar a success="Normal" durante el desarrollo para detectar
+      rápidamente si el XPath del Paso 2 no coincide.
+  -->
   <Operation Class="PatchOperationSequence">
     <success>Always</success>
     <operations>
 
-      <!-- Paso 1: verificar que el ThinkTree existe antes de patchear -->
+      <!--
+        ════════════════════════════════════════════════════════════════════════
+        PASO 1: Verificar que el ThinkTree objetivo existe
+        ════════════════════════════════════════════════════════════════════════
+        PatchOperationTest comprueba si un nodo XPath existe en el DefDatabase.
+        Si el nodo no existe, la operación "falla" pero, gracias a success="Always"
+        en la secuencia padre, el Paso 2 se sigue ejecutando.
+
+        Propósito de esta verificación:
+          - Proporcionar información útil en el log de errores si BioTech no
+            está cargado o si la estructura del ThinkTree cambió en una
+            actualización de RimWorld.
+          - Es una red de seguridad para diagnóstico, no un bloqueador.
+
+        XPath explicado:
+          /Defs                         → raíz del XML de definiciones
+          /ThinkTreeDef                 → busca una def de tipo ThinkTreeDef
+          [defName="MechanoidConstant"] → cuyo defName sea "MechanoidConstant"
+
+        "MechanoidConstant" es el ThinkTree que BioTech asigna a los mecanoides
+        del jugador para su comportamiento continuo (siempre activo, a diferencia
+        de ThinkTrees de alta prioridad que solo se activan en situaciones específicas).
+
+        success="Always":
+          Aunque el test falle (el ThinkTree no existe), la secuencia continúa.
+          Si se cambia a success="Normal", un test fallido aborta la secuencia.
+      -->
       <li Class="PatchOperationTest">
         <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]</xpath>
         <success>Always</success>
       </li>
 
-      <!-- Paso 2: insertar nuestro nodo de reparación al principio de los
-           subNodes del ThinkNode_Priority raíz, para que tenga la máxima
-           prioridad junto al resto de comportamientos urgentes. -->
+      <!--
+        ════════════════════════════════════════════════════════════════════════
+        PASO 2: Insertar el nodo de reparación en el ThinkTree
+        ════════════════════════════════════════════════════════════════════════
+        PatchOperationInsert añade nodos XML hijos al nodo encontrado por XPath.
+
+        XPath explicado (de afuera hacia adentro):
+          /Defs
+            /ThinkTreeDef[defName="MechanoidConstant"]
+              → El ThinkTree de comportamiento constante de mecanoides BioTech.
+
+            /thinkRoot
+              → El nodo raíz del árbol (ThinkNode raíz).
+                Todos los ThinkNodes del árbol son descendientes de este nodo.
+
+            /subNodes
+              → La lista de nodos hijos directos del ThinkNode raíz.
+
+            /li[@Class="ThinkNode_Priority"]
+              → El primer hijo de tipo ThinkNode_Priority.
+                ThinkNode_Priority evalúa sus hijos en orden y devuelve
+                el resultado del primer hijo que emite un job.
+                Es el nodo de "cola de prioridad" principal del mecanoid.
+
+            /subNodes
+              → La lista de nodos hijos de ese ThinkNode_Priority.
+                Aquí es donde se insertan los comportamientos del mecanoid
+                en orden de prioridad (el primero de la lista tiene máxima prioridad).
+
+        ⚠️  RIESGO XPath — RimWorld 1.6:
+          Si Ludeon reestructura MechanoidConstant en 1.6 y el nodo
+          ThinkNode_Priority ya no está como hijo directo de thinkRoot/subNodes,
+          o si lo renombran, este XPath no coincidirá y el patch no se aplicará.
+          Síntoma: los mecanoides nunca van a la estación de reparación.
+          Diagnóstico: buscar "MechanoidConstant" en los XML descompilados de
+          Assembly-CSharp.dll o en los Defs de BioTech con un decompilador.
+
+        order="Prepend":
+          Inserta los nodos al PRINCIPIO de la lista <subNodes>.
+          Esto da MÁXIMA PRIORIDAD al nodo de reparación: la IA evaluará
+          primero si el mecanoid necesita repararse antes de evaluar cualquier
+          otro comportamiento (combate, recolección de recursos, etc.).
+
+          Alternativa "Append": añadiría el nodo al final, con mínima prioridad.
+          En ese caso, el mecanoid solo buscaría reparación cuando no tenga
+          ninguna otra tarea pendiente, lo cual podría retrasar demasiado la
+          reparación en situaciones de combate.
+      -->
       <li Class="PatchOperationInsert">
         <xpath>/Defs/ThinkTreeDef[defName="MechanoidConstant"]/thinkRoot/subNodes/li[@Class="ThinkNode_Priority"]/subNodes</xpath>
         <order>Prepend</order>
+
+        <!--
+          Nodo XML a insertar. Puede contener múltiples <li> si se quieren
+          añadir varios nodos en una sola operación.
+        -->
         <value>
+
           <!--
-            Condicional: ¿el mecanoid está dañado por debajo del umbral
-            Y hay una estación alcanzable con potencia?
-            Si se cumple, JobGiver_GoToRepairStation emite el job de navegación.
+            ThinkNode_ConditionalNeedsRepair:
+              Nodo condicional definido en ThinkNode_ConditionalNeedsRepair.cs.
+              Extiende ThinkNode_Conditional y sobreescribe el método Satisfied().
+
+              Comportamiento:
+                - Se evalúa en cada ciclo de IA del mecanoid.
+                - Satisfied() devuelve true si:
+                    1. El pawn es un mecanoid del jugador.
+                    2. Su salud está por debajo del umbral configurado.
+                    3. Hay una estación válida y alcanzable en el mapa.
+                - Si Satisfied() devuelve true, la IA desciende a los subNodes
+                  para buscar un job (JobGiver_GoToRepairStation).
+                - Si devuelve false, la IA pasa al siguiente nodo del
+                  ThinkNode_Priority padre (otros comportamientos del mecanoid).
+
+              Este nodo actúa como "portero": solo permite que el subárbol de
+              reparación se evalúe cuando todas las condiciones se cumplen,
+              evitando la llamada costosa al buscador de estaciones en cada
+              tick cuando no es necesaria.
           -->
           <li Class="RobotRepairStation.ThinkNode_ConditionalNeedsRepair">
+
+            <!--
+              Nodos hijos evaluados SOLO si Satisfied() devuelve true.
+              En este caso, solo hay un hijo: el JobGiver que emite el job
+              de navegación a la estación.
+            -->
             <subNodes>
+
+              <!--
+                JobGiver_GoToRepairStation:
+                  Nodo generador de jobs definido en ThinkNode_ConditionalNeedsRepair.cs.
+                  Extiende ThinkNode_JobGiver y sobreescribe TryGiveJob().
+
+                  Comportamiento:
+                    - Busca la estación de reparación más cercana válida para
+                      el pawn usando RepairStationUtility.FindBestRepairStation().
+                    - Verifica que la estación no esté ya reservada por otro
+                      mecanoid de la misma facción.
+                    - Si encuentra una estación disponible, emite el job
+                      RRS_GoToRepairStation con la estación como targetA.
+                    - Si no encuentra ninguna, devuelve null y la IA pasa al
+                      siguiente nodo del ThinkNode_Priority padre.
+
+                  Relación con ThinkNode_ConditionalNeedsRepair:
+                    Aunque el condicional padre ya verificó que hay una estación
+                    (mediante FindBestRepairStationComp), el JobGiver hace su
+                    propia búsqueda para obtener la referencia directa al edificio.
+                    Esto es necesario porque los ThinkTrees no pasan datos entre
+                    nodos; cada nodo trabaja de forma independiente.
+              -->
               <li Class="RobotRepairStation.JobGiver_GoToRepairStation"/>
+
             </subNodes>
           </li>
+
         </value>
       </li>
 
