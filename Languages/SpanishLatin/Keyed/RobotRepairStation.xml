@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════╗
+  ║  Languages/SpanishLatin/Keyed/RobotRepairStation.xml                        ║
+  ║  Strings traducibles del mod — Español Latino                               ║
+  ╠═════════════════════════════════════════════════════════════════════════════╣
+  ║  Traducción basada en el archivo base:                                      ║
+  ║    Languages/English/Keyed/RobotRepairStation.xml                           ║
+  ║                                                                             ║
+  ║  Notas para traductores:                                                    ║
+  ║    - Las claves (tags XML) NO deben modificarse.                            ║
+  ║    - Solo traducir el contenido entre las etiquetas de apertura y cierre.   ║
+  ║    - Los marcadores {0}, {1}, etc. son parámetros posicionales — deben      ║
+  ║      conservarse tal cual en la traducción.                                 ║
+  ║    - Si una clave no existe en este archivo, RimWorld usa el inglés         ║
+  ║      como idioma de respaldo automático.                                    ║
+  ╚═════════════════════════════════════════════════════════════════════════════╝
+-->
+<LanguageData>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       UI LABELS — Etiquetas generales del edificio
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <RRS_RepairStationLabel>Estación de reparación de robots</RRS_RepairStationLabel>
+
+  <RRS_RepairStationDesc>Repara mecánoides dañados de forma automática.</RRS_RepairStationDesc>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       INSPECTOR PANEL — Panel de inspección del edificio
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- {0} = nombre corto del mecánoide. Ejemplo: "Reparando: Guadaña-1" -->
+  <RRS_InspectorCurrentOccupant>Reparando: {0}</RRS_InspectorCurrentOccupant>
+
+  <RRS_InspectorEmpty>En espera — aguardando mecánoide dañado</RRS_InspectorEmpty>
+
+  <RRS_InspectorNoPower>Sin energía — estación fuera de línea</RRS_InspectorNoPower>
+
+  <RRS_InspectorNoSteel>Sin acero — reparación detenida</RRS_InspectorNoSteel>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       JOB STRINGS — Strings de actividad de los jobs
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- {0} = nombre corto del mecánoide -->
+  <RRS_JobGoToStation>{0} se dirige a la estación de reparación.</RRS_JobGoToStation>
+
+  <RRS_JobRepairing>{0} siendo reparado en la estación.</RRS_JobRepairing>
+
+  <RRS_JobRepairComplete>{0} ha terminado de repararse.</RRS_JobRepairComplete>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       GIZMO BUTTONS — Botones de la barra de gizmos del edificio
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <RRS_GizmoSetThreshold>Ajustar umbral de reparación</RRS_GizmoSetThreshold>
+
+  <RRS_GizmoSetThresholdDesc>Establece el porcentaje de salud a partir del cual los mecánoides buscarán esta estación de reparación.</RRS_GizmoSetThresholdDesc>
+
+  <RRS_GizmoEjectOccupant>Expulsar mecánoide</RRS_GizmoEjectOccupant>
+
+  <RRS_GizmoEjectOccupantDesc>Fuerza al mecánoide actual a abandonar la estación de reparación.</RRS_GizmoEjectOccupantDesc>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       LETTERS / NOTIFICATIONS — Cartas y mensajes de notificación
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <RRS_LetterRepairCompleteLabel>Reparación completada</RRS_LetterRepairCompleteLabel>
+
+  <!-- {0} = nombre corto del mecánoide reparado -->
+  <!-- Ejemplo: "Guadaña-1 ha sido reparado por completo en la estación de reparación de robots." -->
+  <RRS_LetterRepairCompleteText>{0} ha sido reparado por completo en la estación de reparación de robots.</RRS_LetterRepairCompleteText>
+
+  <RRS_LetterNoSteelLabel>Reparación interrumpida</RRS_LetterNoSteelLabel>
+
+  <!-- {0} = nombre del mecánoide afectado -->
+  <!-- Ejemplo: "La estación de reparación de robots se ha quedado sin acero y no puede continuar reparando a Guadaña-1." -->
+  <RRS_LetterNoSteelText>La estación de reparación de robots se ha quedado sin acero y no puede continuar reparando a {0}.</RRS_LetterNoSteelText>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       STAT LABELS — Etiquetas de estadísticas personalizadas
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <RRS_StatRepairSpeed>Velocidad de reparación</RRS_StatRepairSpeed>
+
+  <RRS_StatRepairSpeedDesc>Qué tan rápido repara esta estación la salud de los mecánoides por día.</RRS_StatRepairSpeedDesc>
+
+</LanguageData>
