@@ -94,12 +94,22 @@ namespace RobotRepairStation
     /// <para>
     /// Responsabilidades de este comp:
     /// <list type="bullet">
-    ///   <item>Ejecutar el ciclo de curación de lesiones activas cada tick.</item>
+    ///   <item>Ejecutar el ciclo de curación de lesiones activas cada <c>repairTickInterval</c> ticks.</item>
     ///   <item>Detectar cuándo el mecanoid ha alcanzado plena salud y notificarlo.</item>
+    ///   <item>
+    ///     Verificar que hay acero disponible en el buffer del edificio ANTES de aplicar
+    ///     curación, para garantizar que nunca se cura sin coste de recursos incluso si
+    ///     el Building.Tick() y el CompTick() coinciden en el mismo tick.
+    ///   </item>
     /// </list>
-    /// El consumo de acero y la gestión del buffer residen en
-    /// <see cref="Building_RobotRepairStation.TryConsumeSteel"/> para mantener
-    /// separada la lógica de recursos de la lógica de curación.
+    /// </para>
+    /// <para>
+    /// Orden de ejecución garantizado por diseño:
+    /// El tick del <see cref="Building_RobotRepairStation"/> consume acero primero
+    /// (en <c>Building.Tick()</c>). El comp tick aplica curación después
+    /// (en <c>ThingComp.CompTick()</c>, que RimWorld llama tras el tick del edificio).
+    /// Para mayor seguridad, este comp también comprueba <see cref="Building_RobotRepairStation.HasSteel"/>
+    /// antes de curar, evitando un ciclo gratuito si el buffer se vacía en este tick.
     /// </para>
     /// </summary>
     public class CompRobotRepairStation : ThingComp
@@ -123,13 +133,20 @@ namespace RobotRepairStation
 
         /// <summary>
         /// Llamado por el engine de RimWorld cada tick de juego (60 ticks/segundo
-        /// a velocidad normal).
+        /// a velocidad normal), después del <c>Tick()</c> del edificio padre.
         /// <para>
         /// Condiciones de salida temprana (sin coste de CPU):
         /// <list type="number">
         ///   <item>La estación no tiene energía.</item>
         ///   <item>No hay mecanoid docked.</item>
+        ///   <item>El mecanoid docked está muerto.</item>
         ///   <item>El intervalo de ciclo aún no se ha cumplido.</item>
+        ///   <item>
+        ///     No hay acero en el buffer (<see cref="Building_RobotRepairStation.HasSteel"/>).
+        ///     Esto garantiza que nunca se aplica curación sin coste de recursos,
+        ///     incluso si <c>Building.Tick()</c> y <c>CompTick()</c> coinciden en el
+        ///     mismo tick y el buffer acaba de vaciarse.
+        ///   </item>
         /// </list>
         /// Solo cuando todas las condiciones se cumplen se llama a
         /// <see cref="ApplyRepairTick"/>, que es la operación costosa (LINQ sobre hediffs).
@@ -148,8 +165,15 @@ namespace RobotRepairStation
             if (pawn == null || pawn.Dead) return;
 
             // Ciclo de reparación: solo se ejecuta cada repairTickInterval ticks.
-            if (Find.TickManager.TicksGame % Props.repairTickInterval == 0)
-                ApplyRepairTick(pawn);
+            if (Find.TickManager.TicksGame % Props.repairTickInterval != 0) return;
+
+            // Verificar que hay acero disponible antes de curar.
+            // Building.Tick() ya habrá consumido acero del buffer en este mismo tick;
+            // si el buffer quedó vacío (o no había acero), no aplicar curación.
+            // Esto previene un ciclo de curación gratuito cuando el acero se agota.
+            if (!Station.HasSteel) return;
+
+            ApplyRepairTick(pawn);
         }
 
         // ─── Lógica interna ───────────────────────────────────────────────────

@@ -23,8 +23,9 @@
   ║      mods o con el juego base.                                              ║
   ║    - Las claves con {0}, {1}, etc. son plantillas con parámetros            ║
   ║      posicionales que se sustituyen en runtime por .Translate(arg0, arg1).  ║
-  ║    - Las claves están agrupadas por contexto de uso para facilitar          ║
-  ║      el trabajo de traductores.                                             ║
+  ║    - Las claves marcadas [RESERVED] están declaradas para uso futuro pero   ║
+  ║      no tienen referencia activa en el código C# actual. Se conservan para  ║
+  ║      facilitar extensiones sin romper traducciones existentes.              ║
   ║                                                                             ║
   ║  Uso en C#:                                                                 ║
   ║    "CLAVE".Translate()           → texto sin parámetros                     ║
@@ -33,23 +34,6 @@
   ╚═════════════════════════════════════════════════════════════════════════════╝
 -->
 <LanguageData>
-
-  <!-- ══════════════════════════════════════════════════════════════════════════
-       UI LABELS — Etiquetas generales del edificio
-       ══════════════════════════════════════════════════════════════════════════
-       Estas claves son usadas por el ThingDef del edificio para mostrar su
-       nombre y descripción en el menú de construcción y en el tooltip del mapa.
-       NOTA: En la práctica, el label y description en Buildings_RobotRepairStation.xml
-       toman precedencia sobre estas claves para el edificio en sí; estas claves
-       pueden ser útiles si se referencia el edificio desde otros contextos.
-  -->
-
-  <!-- Nombre corto del edificio. Visible en tooltips, alertas y cartas. -->
-  <RRS_RepairStationLabel>Robot Repair Station</RRS_RepairStationLabel>
-
-  <!-- Descripción breve para contextos donde no cabe la descripción completa. -->
-  <RRS_RepairStationDesc>Repairs damaged mechanoids automatically.</RRS_RepairStationDesc>
-
 
   <!-- ══════════════════════════════════════════════════════════════════════════
        INSPECTOR PANEL — Panel de inspección del edificio
@@ -87,25 +71,6 @@
 
 
   <!-- ══════════════════════════════════════════════════════════════════════════
-       JOB STRINGS — Strings de actividad de los jobs
-       ══════════════════════════════════════════════════════════════════════════
-       Textos mostrados en la columna "Activity" del panel de pawn seleccionado
-       y en el log de actividad. Corresponden al campo <reportString> de los
-       JobDefs, pero estas claves permiten mensajes más ricos con parámetros.
-       {0} = nombre corto del mecanoid (pawn.LabelShort).
-  -->
-
-  <!-- Mostrado mientras el mecanoid navega hacia la estación (job RRS_GoToRepairStation). -->
-  <RRS_JobGoToStation>{0} going to repair station.</RRS_JobGoToStation>
-
-  <!-- Mostrado mientras el mecanoid está docked y siendo reparado (job RRS_RepairAtStation). -->
-  <RRS_JobRepairing>{0} repairing at station.</RRS_JobRepairing>
-
-  <!-- Mostrado cuando el job de reparación termina exitosamente. -->
-  <RRS_JobRepairComplete>{0} has finished repairing.</RRS_JobRepairComplete>
-
-
-  <!-- ══════════════════════════════════════════════════════════════════════════
        GIZMO BUTTONS — Botones de la barra de gizmos del edificio
        ══════════════════════════════════════════════════════════════════════════
        Textos de los botones que aparecen en la barra inferior cuando el jugador
@@ -113,16 +78,14 @@
   -->
 
   <!--
-    Etiqueta principal del botón de ajuste de umbral de reparación.
-    NOTA: este gizmo está preparado en el código pero pendiente de implementar
-    en la UI completa (actualmente el umbral solo se ajusta desde el XML).
-    Reservado para una futura ventana de configuración.
+    [RESERVED] Etiqueta del botón de ajuste de umbral de reparación.
+    Reservado para una futura ventana de configuración del umbral de salud.
+    Actualmente el umbral solo se ajusta desde el XML del ThingDef.
   -->
   <RRS_GizmoSetThreshold>Set repair threshold</RRS_GizmoSetThreshold>
 
   <!--
-    Tooltip del botón de umbral. Aparece al pasar el cursor sobre el botón.
-    Explica al jugador qué hace el ajuste de umbral.
+    [RESERVED] Tooltip del botón de umbral.
   -->
   <RRS_GizmoSetThresholdDesc>Set the health percentage at which mechanoids will seek this repair station.</RRS_GizmoSetThresholdDesc>
 
@@ -142,43 +105,34 @@
   <!-- ══════════════════════════════════════════════════════════════════════════
        LETTERS / NOTIFICATIONS — Cartas y mensajes de notificación
        ══════════════════════════════════════════════════════════════════════════
-       RimWorld tiene dos sistemas de notificación:
-         - Messages.Message(): mensaje pequeño en la esquina superior derecha.
-                               No interrumpe al jugador.
-         - Find.LetterStack.ReceiveLetter(): carta en la pila de cartas.
-                                             Abre un popup y llama la atención.
-       Este mod usa Messages.Message() para ambas notificaciones (positiva y
-       negativa), que es menos intrusivo que una carta completa. Las claves
-       Label son para el título si en el futuro se migra a cartas formales.
+       Este mod usa Messages.Message() (mensaje pequeño en la esquina superior)
+       en lugar de Find.LetterStack.ReceiveLetter() (carta con popup), para no
+       interrumpir al jugador en eventos rutinarios de reparación.
   -->
 
   <!--
-    Título de la notificación de reparación completa.
-    Actualmente usado como referencia; el mensaje real se genera con
-    "RRS_LetterRepairCompleteText".Translate() en CompRobotRepairStation.OnRepairComplete().
+    [RESERVED] Título para uso futuro si se migra a cartas formales.
   -->
   <RRS_LetterRepairCompleteLabel>Repair complete</RRS_LetterRepairCompleteLabel>
 
   <!--
-    Texto del mensaje positivo mostrado cuando un mecanoid termina de repararse.
-    {0} = mechanoid.LabelShort (nombre corto del mecanoid reparado).
+    Texto del mensaje positivo cuando un mecanoid termina de repararse.
+    {0} = mechanoid.LabelShort.
     Ejemplo: "Scyther-1 has been fully repaired at the robot repair station."
     Generado en CompRobotRepairStation.OnRepairComplete().
   -->
   <RRS_LetterRepairCompleteText>{0} has been fully repaired at the robot repair station.</RRS_LetterRepairCompleteText>
 
   <!--
-    Título de la notificación de falta de acero.
-    Para uso futuro si se migra a cartas formales (Find.LetterStack.ReceiveLetter()).
+    [RESERVED] Título para uso futuro si se migra a cartas formales.
   -->
   <RRS_LetterNoSteelLabel>Repair halted</RRS_LetterNoSteelLabel>
 
   <!--
-    Texto del mensaje negativo mostrado cuando la estación se queda sin acero.
+    Texto del mensaje negativo cuando la estación se queda sin acero.
     {0} = nombre del mecanoid afectado (o "mechanoid" si currentOccupant es null).
     Ejemplo: "The robot repair station has run out of steel and cannot continue repairing Scyther-1."
-    Generado en Building_RobotRepairStation.TryConsumeSteel() cuando GenClosest
-    no encuentra acero en un radio de 8 tiles.
+    Generado en Building_RobotRepairStation.TryConsumeSteel().
   -->
   <RRS_LetterNoSteelText>The robot repair station has run out of steel and cannot continue repairing {0}.</RRS_LetterNoSteelText>
 
@@ -186,24 +140,13 @@
   <!-- ══════════════════════════════════════════════════════════════════════════
        STAT LABELS — Etiquetas de estadísticas personalizadas
        ══════════════════════════════════════════════════════════════════════════
-       Estas claves están reservadas para estadísticas definidas con StatDef
-       en Defs/StatDefs/ (carpeta pendiente de implementar).
-       Actualmente no hay StatDefs activos en el mod, pero las claves están
-       preparadas para cuando se añada una estadística "Repair Speed" que
-       pueda ser modificada por investigaciones o habilidades del jugador.
+       [RESERVED] Reservadas para StatDefs personalizados (carpeta Defs/StatDefs/
+       pendiente de implementar). Permiten añadir una estadística "Repair Speed"
+       modificable por investigaciones o por otras facilidades sin romper
+       traducciones existentes.
   -->
 
-  <!--
-    Nombre de la estadística de velocidad de reparación.
-    Aparecería en la tabla de estadísticas del edificio en el panel de inspección.
-  -->
   <RRS_StatRepairSpeed>Repair speed</RRS_StatRepairSpeed>
-
-  <!--
-    Descripción de la estadística. Aparecería en el tooltip de la estadística.
-    "per day" es la unidad estándar de RimWorld para velocidades de recuperación
-    (equivalente a healing rate de los colonos).
-  -->
   <RRS_StatRepairSpeedDesc>How quickly this station repairs mechanoid health per day.</RRS_StatRepairSpeedDesc>
 
 </LanguageData>

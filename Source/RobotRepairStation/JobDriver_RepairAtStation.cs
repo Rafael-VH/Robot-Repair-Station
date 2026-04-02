@@ -20,6 +20,14 @@ namespace RobotRepairStation
     /// o porque se forzó la expulsión (<see cref="Building_RobotRepairStation.EjectOccupant"/>) —
     /// el driver llama a <c>EndJobWith(Succeeded)</c>.
     /// </para>
+    /// <para>
+    /// Relación con <see cref="JobDriver_GoToRepairStation"/>:
+    /// Este job siempre es encolado por <c>JobDriver_GoToRepairStation</c> como continuación
+    /// directa. El método <see cref="IsContinuation"/> devuelve <c>true</c> para ese job,
+    /// lo que permite a RimWorld reutilizar la reserva existente sobre la estación.
+    /// Por eso <see cref="TryMakePreToilReservations"/> devuelve <c>true</c> sin reservar
+    /// de nuevo: hacerlo causaría una reserva duplicada sobre el mismo objetivo.
+    /// </para>
     /// </summary>
     public class JobDriver_RepairAtStation : JobDriver
     {
@@ -34,18 +42,28 @@ namespace RobotRepairStation
         // ─── Reservas ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Reserva la estación para este pawn.
+        /// No realiza ninguna reserva nueva para este job.
         /// <para>
-        /// La reserva garantiza que, mientras el mecanoid está siendo reparado,
-        /// ningún otro pawn puede reservar la misma estación. Capacidad 1 (una
-        /// reserva por edificio).
+        /// La reserva sobre la estación ya fue establecida por
+        /// <see cref="JobDriver_GoToRepairStation.TryMakePreToilReservations"/>.
+        /// Dado que <see cref="IsContinuation"/> devuelve <c>true</c> para ese job,
+        /// RimWorld marca ambos jobs como parte del mismo flujo y reutiliza la reserva
+        /// existente sin exigir una nueva.
+        /// </para>
+        /// <para>
+        /// IMPORTANTE: llamar a <c>pawn.Reserve</c> aquí causaría una reserva duplicada
+        /// sobre el mismo <c>targetA</c> con jobs distintos, lo que puede resultar en
+        /// un doble <c>Release</c> al terminar y corromper el <c>reservationManager</c>.
         /// </para>
         /// </summary>
-        /// <param name="errorOnFailed">Si <c>true</c>, registrar error en caso de fallo.</param>
-        /// <returns><c>true</c> si la reserva tuvo éxito.</returns>
+        /// <param name="errorOnFailed">Ignorado — no se realiza ninguna reserva.</param>
+        /// <returns>Siempre <c>true</c>.</returns>
         public override bool TryMakePreToilReservations(bool errorOnFailed)
         {
-            return pawn.Reserve(job.targetA, job, 1, -1, null, errorOnFailed);
+            // La reserva sobre la estación ya existe gracias a JobDriver_GoToRepairStation.
+            // IsContinuation() garantiza que RimWorld la reutiliza sin exigir una nueva.
+            // No llamar a pawn.Reserve aquí para evitar reserva duplicada y doble Release.
+            return true;
         }
 
         // ─── Toils ────────────────────────────────────────────────────────────
@@ -93,7 +111,7 @@ namespace RobotRepairStation
                     EndJobWith(JobCondition.Succeeded);
             };
 
-            wait.handlingFacing      = true;          // El toil gestiona la rotación manualmente.
+            wait.handlingFacing      = true;                   // El toil gestiona la rotación manualmente.
             wait.defaultCompleteMode = ToilCompleteMode.Never; // Sin timeout, espera indefinida.
 
             yield return wait;
@@ -123,9 +141,14 @@ namespace RobotRepairStation
         /// (<see cref="RRS_JobDefOf.RRS_GoToRepairStation"/>) hacia la misma estación.
         /// <para>
         /// RimWorld usa este método para decidir si, al encolar este job inmediatamente
-        /// después del job de navegación, puede omitir la fase de reservas sin causar
-        /// conflictos. Devolver <c>true</c> indica que los dos jobs son parte del
-        /// mismo flujo y comparten el mismo objetivo.
+        /// después del job de navegación, puede reutilizar la reserva existente sin
+        /// crear una nueva. Devolver <c>true</c> indica que los dos jobs son parte del
+        /// mismo flujo y comparten el mismo objetivo y reserva.
+        /// </para>
+        /// <para>
+        /// Esta es también la razón por la que <see cref="TryMakePreToilReservations"/>
+        /// no realiza ninguna reserva: RimWorld no la exige cuando <c>IsContinuation</c>
+        /// devuelve <c>true</c> para el job previo.
         /// </para>
         /// </summary>
         /// <param name="j">El job previo que se está comparando.</param>

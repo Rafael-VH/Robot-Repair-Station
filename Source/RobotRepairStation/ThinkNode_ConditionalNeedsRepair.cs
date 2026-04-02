@@ -22,6 +22,7 @@ namespace RobotRepairStation
     /// <list type="number">
     ///   <item>¿Es un mecanoid? → No: salir (false).</item>
     ///   <item>¿Es del jugador? → No: salir (false).</item>
+    ///   <item>¿Ya está en un job de reparación (activo o en cola)? → Sí: salir (false).</item>
     ///   <item>¿Existe una estación disponible y alcanzable? → No: salir (false).</item>
     ///   <item>¿La salud es inferior al umbral configurado? → Sí: entrar al subárbol.</item>
     /// </list>
@@ -45,14 +46,22 @@ namespace RobotRepairStation
         /// </summary>
         /// <param name="pawn">El pawn cuya IA está siendo evaluada.</param>
         /// <returns>
-        /// <c>true</c> si el pawn es un mecanoid del jugador con salud baja y hay
-        /// una estación válida y accesible.
+        /// <c>true</c> si el pawn es un mecanoid del jugador con salud baja, no está ya
+        /// en proceso de reparación, y hay una estación válida y accesible.
         /// </returns>
         protected override bool Satisfied(Pawn pawn)
         {
             // Verificaciones baratas primero.
             if (!pawn.RaceProps.IsMechanoid)      return false;
             if (pawn.Faction != Faction.OfPlayer)  return false;
+
+            // Evitar interrumpir una reparación en curso.
+            // Sin esta guard, un mecanoid con salud baja que ya está docked o
+            // navegando hacia la estación recibiría un nuevo job RRS_GoToRepairStation
+            // en cada ciclo de IA, interrumpiendo la reparación actual.
+            if (pawn.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation   ||
+                pawn.CurJob?.def == RRS_JobDefOf.RRS_GoToRepairStation)
+                return false;
 
             // Búsqueda de estación (más cara): solo si pasó las verificaciones anteriores.
             var comp = RepairStationUtility.FindBestRepairStationComp(pawn);
@@ -76,7 +85,8 @@ namespace RobotRepairStation
     /// Este nodo es hijo directo de <see cref="ThinkNode_ConditionalNeedsRepair"/>
     /// en el ThinkTree, por lo que solo se evalúa si el condicional padre ya fue
     /// satisfecho. Aun así, repite la búsqueda de estación porque el ThinkTree
-    /// puede saltar a este nodo de formas no estrictamente secuenciales.
+    /// puede saltar a este nodo de formas no estrictamente secuenciales y porque
+    /// los ThinkNodes no tienen mecanismo para pasar datos entre sí.
     /// </para>
     /// </summary>
     public class JobGiver_GoToRepairStation : ThinkNode_JobGiver
@@ -132,6 +142,17 @@ namespace RobotRepairStation
     /// Centraliza la lógica de búsqueda para evitar duplicarla en
     /// <see cref="ThinkNode_ConditionalNeedsRepair"/> y
     /// <see cref="JobGiver_GoToRepairStation"/>.
+    /// </para>
+    /// <para>
+    /// NOTA SOBRE LA DOBLE LLAMADA: <see cref="ThinkNode_ConditionalNeedsRepair.Satisfied"/>
+    /// llama a <see cref="FindBestRepairStationComp"/> y, si retorna true, el ThinkTree
+    /// evalúa <see cref="JobGiver_GoToRepairStation.TryGiveJob"/>, que llama a
+    /// <see cref="FindBestRepairStation"/> de nuevo. Esta doble búsqueda es una
+    /// limitación del sistema de ThinkNodes de RimWorld (los nodos no comparten estado).
+    /// Con un número reducido de estaciones (típicamente &lt;10 por mapa) el coste es
+    /// despreciable. Si en el futuro el número de estaciones creciera significativamente,
+    /// considerar un caché por pawn+tick usando un diccionario estático limpiado al inicio
+    /// de cada tick de IA.
     /// </para>
     /// </summary>
     public static class RepairStationUtility

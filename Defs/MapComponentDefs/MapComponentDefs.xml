@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ╔═════════════════════════════════════════════════════════════════════════════╗
+  ║  Defs/MapComponentDefs/MapComponentDefs.xml                                 ║
+  ║  Declaración del MapComponent del mod                                       ║
+  ╠═════════════════════════════════════════════════════════════════════════════╣
+  ║  Propósito:                                                                 ║
+  ║    Declara RepairStationTracker como un MapComponent oficial de RimWorld.   ║
+  ║    Con esta declaración, RimWorld instancia automáticamente el componente   ║
+  ║    para cada mapa al cargarlo o crearlo, sin necesitar lógica de            ║
+  ║    creación manual en GetOrCreate (que se mantiene solo como red de         ║
+  ║    seguridad).                                                              ║
+  ║                                                                             ║
+  ║  Sin este archivo:                                                          ║
+  ║    El tracker solo existe si alguna estación llama a GetOrCreate primero.   ║
+  ║    Esto creaba una ventana de tiempo durante la carga del mapa en la que    ║
+  ║    los ThinkNodes podían ejecutarse sin tracker disponible.                 ║
+  ║                                                                             ║
+  ║  Con este archivo:                                                          ║
+  ║    RimWorld instancia RepairStationTracker antes de que cualquier Building  ║
+  ║    o ThinkNode se ejecute. GetOrCreate siempre encontrará el componente     ║
+  ║    ya existente y nunca necesitará crearlo de emergencia.                  ║
+  ╚═════════════════════════════════════════════════════════════════════════════╝
+-->
+<Defs>
+
+  <!--
+    MapComponentDef: instrucción a RimWorld para que instancie automáticamente
+    el componente especificado en compClass para cada mapa del juego.
+
+    RimWorld llama al constructor MapComponent(Map map) del componente
+    durante la inicialización del mapa, antes de que se carguen los buildings
+    y antes de que se ejecuten los ThinkTrees.
+
+    defName: identificador único. Prefijo RRS_ para evitar colisiones.
+    compClass: clase C# completa (namespace + nombre de clase).
+  -->
+  <MapComponentDef>
+    <defName>RRS_RepairStationTrackerDef</defName>
+    <compClass>RobotRepairStation.RepairStationTracker</compClass>
+  </MapComponentDef>
+
+</Defs>

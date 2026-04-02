@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   ╔═════════════════════════════════════════════════════════════════════════════╗
-  ║  Defs/ThingDefs/ResearchDefs.xml                                            ║
+  ║  Defs/ResearchProjectDefs/ResearchDefs.xml                                  ║
   ║  Proyecto de investigación para desbloquear el Robot Repair Station         ║
   ╠═════════════════════════════════════════════════════════════════════════════╣
   ║  Propósito:                                                                 ║
@@ -9,8 +9,15 @@
   ║    de tecnología del juego. Completar esta investigación es el requisito    ║
   ║    previo para construir el edificio RRS_RobotRepairStation.                ║
   ║                                                                             ║
+  ║  Carpeta:                                                                   ║
+  ║    Este archivo reside en Defs/ResearchProjectDefs/ (no en ThingDefs/)      ║
+  ║    para seguir la convención estándar de RimWorld: cada tipo de Def en su   ║
+  ║    propia subcarpeta. RimWorld carga todos los XML de Defs/ sin importar    ║
+  ║    el nombre de subcarpeta, pero la organización correcta facilita la       ║
+  ║    colaboración y la validación con herramientas externas.                  ║
+  ║                                                                             ║
   ║  Relaciones con otros archivos:                                             ║
-  ║    - defName referenciado en Buildings_RobotRepairStation.xml               ║
+  ║    - defName referenciado en Defs/ThingDefs/Buildings_RobotRepairStation.xml║
   ║      (campo <researchPrerequisites>)                                        ║
   ║    - prerequisites apunta a "MechanoidBasics", investigación del DLC        ║
   ║      BioTech que desbloquea la creación básica de mecanoides                ║
@@ -47,8 +54,7 @@
       Descripción completa del proyecto de investigación.
       Aparece en el tooltip al pasar el cursor sobre el nodo en el árbol de
       tecnología. Debe explicar qué se está investigando y qué se desbloquea
-      al completarlo. Uso de segunda persona implícita ("Develop...") es
-      consistente con el estilo narrativo de RimWorld.
+      al completarlo.
     -->
     <description>Develop automated repair systems capable of diagnosing and restoring damaged mechanoids. Unlocks the Robot Repair Station, which allows mechanoids to self-repair when their health is critically low.</description>
 
@@ -58,67 +64,36 @@
         - Investigaciones básicas:   300-600 puntos.
         - Investigaciones medias:    600-1200 puntos.
         - Investigaciones avanzadas: 1200-4000 puntos.
-      1200 justifica que el jugador invierta tiempo significativo antes de
-      obtener reparación automática, sin ser tan caro que desincentive su uso.
-      NOTA: el coste real puede modificarse según el multiplicador de velocidad
-      de investigación configurado en las opciones de la partida.
     -->
     <baseCost>1200</baseCost>
 
     <!--
       Nivel tecnológico requerido para investigar este proyecto.
-      Spacer es el cuarto nivel de tecnología en RimWorld:
-        Neolithic → Medieval → Industrial → Spacer → Ultra → Archotech
-      Spacer requiere una Hi-Tech Research Bench para investigar.
+      Spacer requiere una Hi-Tech Research Bench.
       Es el nivel apropiado para tecnología de reparación de mecanoides,
-      consistente con otras investigaciones del DLC BioTech relacionadas
-      con mecanoides avanzados.
+      consistente con otras investigaciones del DLC BioTech.
     -->
     <techLevel>Spacer</techLevel>
 
     <!--
-      Lista de investigaciones que deben completarse ANTES de que este
-      proyecto esté disponible para investigar.
-
-      MechanoidBasics:
-        Investigación del DLC BioTech que desbloquea la mecanoide básica
-        (creación de mecanoides, comandos básicos). Es el prerrequisito
-        lógico para "reparación de mecanoides": primero el jugador aprende
-        a crear mecanoides, luego aprende a repararlos automáticamente.
-        Si BioTech no está activo, esta investigación no existe y RimWorld
-        mostrará un error en el log; por eso About.xml declara BioTech como
-        dependencia obligatoria.
+      Investigaciones previas obligatorias.
+      MechanoidBasics: desbloquea la mecanoide básica en BioTech.
+      Es el prerrequisito lógico antes de "reparación automatizada".
     -->
     <prerequisites>
       <li>MechanoidBasics</li>
     </prerequisites>
 
     <!--
-      Coordenadas de posición del nodo en el árbol de tecnología visual.
-      El árbol de tecnología usa un sistema de coordenadas flotantes donde:
-        X: posición horizontal (columna). Valores más altos = más a la derecha.
-        Y: posición vertical (fila). Valores más altos = más abajo.
-
-      researchViewX=12.0, researchViewY=4.5:
-        Posiciona la investigación en la zona Spacer del árbol, a la derecha
-        de MechanoidBasics, en una fila intermedia de la sección de BioTech.
-        Ajustar estos valores si hay colisiones visuales con otras
-        investigaciones de BioTech o de otros mods en el árbol.
-
-      CONSEJO: abrir el árbol de investigación en el juego con el mod activo
-      y ajustar estos valores hasta encontrar un emplazamiento sin solapamientos.
+      Coordenadas en el árbol de tecnología visual.
+      Ajustar si hay colisiones con otras investigaciones de BioTech o de otros mods.
     -->
     <researchViewX>12.0</researchViewX>
     <researchViewY>4.5</researchViewY>
 
     <!--
-      Pestaña del árbol de tecnología donde aparece este nodo.
-      "Biotech" agrupa todas las investigaciones relacionadas con el DLC BioTech
-      (mecanoides, genes, xenotipos, etc.).
-      Colocar la investigación en esta pestaña hace que sea fácilmente localizable
-      por jugadores que buscan mejoras de mecanoides.
-      Si esta pestaña no existe (BioTech no activo), el nodo puede no mostrarse
-      correctamente, de ahí la dependencia obligatoria en About.xml.
+      Pestaña del árbol de tecnología.
+      "Biotech" agrupa todas las investigaciones del DLC BioTech.
     -->
     <tab>Biotech</tab>
 

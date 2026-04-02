@@ -4,6 +4,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using Verse.AI;
+using System.Linq;
 
 namespace RobotRepairStation
 {
@@ -18,7 +19,7 @@ namespace RobotRepairStation
     /// <para>
     /// Relación con otros componentes:
     /// <list type="bullet">
-    ///   <item><see cref="CompRobotRepairStation"/> — tick de curación, delega aquí la gestión de ocupante.</item>
+    ///   <item><see cref="CompRobotRepairStation"/> — tick de curación; consume acero a través de <see cref="TryConsumeSteel"/>.</item>
     ///   <item><see cref="JobDriver_GoToRepairStation"/> — llama a <see cref="TryAcceptOccupant"/>.</item>
     ///   <item><see cref="JobDriver_RepairAtStation"/> — observa <see cref="CurrentOccupant"/> en su tickAction.</item>
     ///   <item><see cref="RepairStationTracker"/> — registra/desregistra esta instancia para que los ThinkNodes puedan encontrarla.</item>
@@ -57,7 +58,7 @@ namespace RobotRepairStation
         /// </summary>
         private const int SteelBufferMax = 50;
 
-        // ─── Caché de comp properties ─────────────────────────────────────────
+        // ─── Caché de comps ───────────────────────────────────────────────────
 
         /// <summary>
         /// Referencia cacheada a las <see cref="CompProperties_RobotRepairStation"/>
@@ -65,6 +66,17 @@ namespace RobotRepairStation
         /// lineal en la lista de comps — en cada tick.
         /// </summary>
         private CompProperties_RobotRepairStation cachedCompProps;
+
+        /// <summary>
+        /// Referencia cacheada al <see cref="CompPowerTrader"/> del edificio.
+        /// <para>
+        /// <c>HasPower</c> se consulta en cada tick y desde múltiples sitios
+        /// (gizmos, panel de inspección, lógica de curación). Cachear evita
+        /// la búsqueda lineal en la lista de comps en cada acceso.
+        /// </para>
+        /// Se inicializa en <see cref="SpawnSetup"/> junto al resto de cachés.
+        /// </summary>
+        private CompPowerTrader cachedPowerComp;
 
         // ─── Propiedades públicas ─────────────────────────────────────────────
 
@@ -79,19 +91,23 @@ namespace RobotRepairStation
         /// <c>true</c> si hay un mecanoid docked y ese mecanoid está vivo.
         /// Se usa como guardia en los ticks y en la lógica de decisión de los ThinkNodes.
         /// </summary>
-        public bool IsOccupied  => currentOccupant != null && !currentOccupant.Dead;
+        public bool IsOccupied => currentOccupant != null && !currentOccupant.Dead;
 
         /// <summary>
         /// <c>true</c> si el <c>CompPowerTrader</c> asociado está alimentado y activo.
+        /// <para>
+        /// Usa la referencia cacheada <see cref="cachedPowerComp"/> para evitar
+        /// la búsqueda lineal en la lista de comps en cada acceso.
         /// Si no hay comp de energía (no debería darse), devuelve <c>false</c>.
+        /// </para>
         /// </summary>
-        public bool HasPower    => this.TryGetComp<CompPowerTrader>()?.PowerOn ?? false;
+        public bool HasPower => cachedPowerComp?.PowerOn ?? false;
 
         /// <summary>
         /// <c>true</c> si el buffer de acero tiene al menos 1 unidad disponible.
         /// Usado para la UI del panel de inspección.
         /// </summary>
-        public bool HasSteel    => steelBuffer > 0;
+        public bool HasSteel => steelBuffer > 0;
 
         /// <summary>
         /// El mecanoid actualmente docked, o <c>null</c> si la estación está libre.
@@ -108,9 +124,10 @@ namespace RobotRepairStation
         /// Llamado por RimWorld cuando el edificio se coloca en el mapa
         /// (tanto en construcción nueva como al cargar una partida guardada).
         /// <para>
-        /// Registra este edificio en el <see cref="RepairStationTracker"/> del mapa
-        /// para que los ThinkNodes puedan encontrarlo sin hacer búsquedas caras
-        /// en el mapa cada tick.
+        /// Inicializa las cachés de comps para evitar búsquedas repetidas en
+        /// la lista de comps durante el juego, y registra este edificio en el
+        /// <see cref="RepairStationTracker"/> del mapa para que los ThinkNodes
+        /// puedan encontrarlo sin búsquedas costosas.
         /// </para>
         /// </summary>
         /// <param name="map">El mapa donde se está colocando el edificio.</param>
@@ -120,6 +137,12 @@ namespace RobotRepairStation
         public override void SpawnSetup(Map map, bool respawningAfterLoad)
         {
             base.SpawnSetup(map, respawningAfterLoad);
+
+            // Cachear referencias a comps aquí, una sola vez, en lugar de
+            // hacer GetComp/TryGetComp en cada tick o acceso a propiedad.
+            cachedPowerComp = GetComp<CompPowerTrader>();
+            cachedCompProps = GetComp<CompRobotRepairStation>()?.Props;
+
             RepairStationTracker.GetOrCreate(map).Register(this);
         }
 
@@ -128,9 +151,15 @@ namespace RobotRepairStation
         /// cargados y están listos (fase post-carga).
         /// <para>
         /// Valida que si había un ocupante guardado, ese ocupante aún tiene activo
-        /// el job de reparación. Si no es así (p.ej. por un bug en una versión anterior
-        /// o un conflicto con otro mod), limpia <c>currentOccupant</c> para desbloquear
-        /// la estación en lugar de quedar en un estado inválido permanente.
+        /// el job de reparación, ya sea en <c>CurJob</c> o en la cola de jobs.
+        /// Si no es así (p.ej. por un bug en una versión anterior o un conflicto
+        /// con otro mod), limpia <c>currentOccupant</c> para desbloquear la
+        /// estación en lugar de quedar en un estado inválido permanente.
+        /// </para>
+        /// <para>
+        /// Se comprueba también la <c>jobQueue</c> porque durante la carga RimWorld
+        /// puede asignar jobs de transición internos (p.ej. <c>WaitMaintainPosture</c>)
+        /// como <c>CurJob</c>, desplazando temporalmente el job de reparación a la cola.
         /// </para>
         /// </summary>
         public override void PostMapInit()
@@ -139,16 +168,22 @@ namespace RobotRepairStation
 
             if (currentOccupant == null) return;
 
+            // Verificar tanto CurJob como la cola: durante la carga, RimWorld puede
+            // haber asignado un job de transición interno como CurJob, desplazando
+            // el job de reparación a la queue. Ambos son estados válidos.
             bool hasActiveJob =
-                currentOccupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation ||
-                currentOccupant.CurJob?.def == RRS_JobDefOf.RRS_GoToRepairStation;
+                currentOccupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation    ||
+                currentOccupant.CurJob?.def == RRS_JobDefOf.RRS_GoToRepairStation  ||
+                (currentOccupant.jobs?.jobQueue?.Any(
+                    qj => qj.job?.def == RRS_JobDefOf.RRS_RepairAtStation ||
+                          qj.job?.def == RRS_JobDefOf.RRS_GoToRepairStation) ?? false);
 
             if (!hasActiveJob)
             {
                 Log.Warning(
                     $"[RobotRepairStation] {currentOccupant.LabelShort} estaba" +
-                    $" registrado en {Label} pero no tiene el job de reparación activo." +
-                    " Limpiando estado para desbloquear la estación.");
+                    $" registrado en {Label} pero no tiene el job de reparación activo" +
+                    " ni en cola. Limpiando estado para desbloquear la estación.");
                 currentOccupant = null;
             }
         }
@@ -193,6 +228,10 @@ namespace RobotRepairStation
         ///   </item>
         /// </list>
         /// </para>
+        /// <para>
+        /// Las cachés de comps (<see cref="cachedPowerComp"/>, <see cref="cachedCompProps"/>)
+        /// NO se serializan: se reconstruyen en <see cref="SpawnSetup"/> al cargar.
+        /// </para>
         /// </summary>
         public override void ExposeData()
         {
@@ -208,12 +247,20 @@ namespace RobotRepairStation
         /// <summary>
         /// Llamado por RimWorld cada tick de juego (ticker type = Normal).
         /// <para>
-        /// Responsabilidad del Tick del Building: gestión del consumo de acero
-        /// (separada de la curación, que reside en <see cref="CompRobotRepairStation.CompTick"/>).
+        /// El tick del edificio gestiona el consumo de acero y delega la curación
+        /// a <see cref="CompRobotRepairStation.CompTick"/>.
         /// </para>
         /// <para>
-        /// Salidas tempranas para minimizar coste de CPU cuando no hay nada que hacer:
-        /// sin energía → sin ocupante → sin props de comp → sin ciclo de consumo aún.
+        /// Para garantizar que la curación y el consumo de acero ocurren en el
+        /// mismo ciclo y en el orden correcto, el tick del Building invoca
+        /// <see cref="TryConsumeSteel"/> primero. El comp de curación consulta
+        /// el resultado (a través de <see cref="HasSteel"/>) antes de aplicar
+        /// healing. Esto evita que un ciclo de curación gratuito ocurra cuando
+        /// el buffer se vacía.
+        /// </para>
+        /// <para>
+        /// Salidas tempranas para minimizar coste de CPU:
+        /// sin energía → sin ocupante → sin props de comp → sin ciclo aún.
         /// </para>
         /// </summary>
         protected override void Tick()
@@ -225,6 +272,9 @@ namespace RobotRepairStation
             if (RepairProps == null) return;
 
             // Consumir acero cada repairTickInterval ticks.
+            // Nota: el comp de curación (CompRobotRepairStation.CompTick) también
+            // comprueba HasSteel antes de aplicar healing, garantizando que nunca
+            // se cura sin acero disponible aunque ambos ticks compartan el intervalo.
             if (Find.TickManager.TicksGame % RepairProps.repairTickInterval == 0)
                 TryConsumeSteel();
         }
@@ -259,8 +309,8 @@ namespace RobotRepairStation
         /// y sale por su propia voluntad (job completado normalmente).
         /// <para>
         /// Solo limpia <c>currentOccupant</c>; NO termina el job ni libera
-        /// reservas, porque el propio driver ya se encarga de eso al recibir
-        /// la señal de que el ocupante es <c>null</c>.
+        /// reservas, porque el propio driver ya se encarga de eso al detectar
+        /// que <c>CurrentOccupant</c> es <c>null</c> en su <c>tickAction</c>.
         /// </para>
         /// <para>
         /// Llamado únicamente desde <see cref="CompRobotRepairStation.OnRepairComplete"/>.
@@ -283,13 +333,17 @@ namespace RobotRepairStation
         /// </list>
         /// </para>
         /// <para>
-        /// Orden de operaciones para evitar race conditions:
+        /// Orden de operaciones para evitar race conditions y doble liberación de reservas:
         /// <list type="number">
         ///   <item>Captura el ocupante y limpia <c>currentOccupant</c> a <c>null</c> de inmediato.</item>
-        ///   <item>Captura el job activo antes de terminarlo (EndCurrentJob puede cambiarlo).</item>
         ///   <item>Termina el job con <c>InterruptForced</c> si el pawn está en el job de reparación.</item>
-        ///   <item>Libera la reserva usando el job capturado previamente.</item>
         /// </list>
+        /// </para>
+        /// <para>
+        /// IMPORTANTE: NO se llama manualmente a <c>reservationManager.Release</c>
+        /// porque <c>EndCurrentJob</c> ya limpia las reservas del driver internamente.
+        /// Llamar a <c>Release</c> de forma adicional causaría una doble liberación
+        /// que puede lanzar excepciones o corromper el <c>reservationManager</c>.
         /// </para>
         /// </summary>
         public void EjectOccupant()
@@ -299,17 +353,11 @@ namespace RobotRepairStation
             Pawn occupant   = currentOccupant;
             currentOccupant = null; // Limpiar antes de cualquier otra operación.
 
-            // Capturar el job ANTES de llamar EndCurrentJob, ya que ese método
-            // puede cambiar CurJob antes de retornar.
-            Job jobToRelease = occupant.CurJob;
-
+            // Terminar el job activo si corresponde al job de reparación.
+            // EndCurrentJob limpia internamente las reservas del driver —
+            // NO llamar a reservationManager.Release para evitar doble liberación.
             if (occupant.CurJob?.def == RRS_JobDefOf.RRS_RepairAtStation)
                 occupant.jobs.EndCurrentJob(JobCondition.InterruptForced);
-
-            // Liberar la reserva del edificio (ocupa el slot 1/-1) para que
-            // otros mecanoides puedan reservarlo en el futuro.
-            if (jobToRelease != null)
-                Map?.reservationManager.Release(this, occupant, jobToRelease);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -332,14 +380,20 @@ namespace RobotRepairStation
         ///     (radio 8 celdas) usando <c>GenClosest.ClosestThingReachable</c>.
         ///   </item>
         ///   <item>
-        ///     Si se encuentra acero: toma hasta <see cref="SteelBufferMax"/> unidades
-        ///     de la pila, recarga el buffer y descuenta el consumo del ciclo actual.
+        ///     Si se encuentra acero: reduce <c>stackCount</c> de la pila y destruye
+        ///     el ítem si queda vacío. Recarga el buffer y descuenta el ciclo actual.
         ///   </item>
         ///   <item>
         ///     Si no hay acero: muestra un mensaje negativo y llama a
         ///     <see cref="EjectOccupant"/>.
         ///   </item>
         /// </list>
+        /// </para>
+        /// <para>
+        /// NOTA sobre modificación de <c>stackCount</c>: se reduce directamente y se
+        /// llama a <c>Destroy</c> si llega a cero. Este es el patrón estándar de RimWorld
+        /// para consumir ítems en el suelo — <c>Destroy(DestroyMode.Vanish)</c> notifica
+        /// al sistema de regiones, zonas de almacenamiento y <c>ListerThings</c>.
         /// </para>
         /// </summary>
         private void TryConsumeSteel()
@@ -374,14 +428,15 @@ namespace RobotRepairStation
                 // Tomar el mínimo entre la pila completa y la capacidad del buffer.
                 int take = Mathf.Min(steel.stackCount, SteelBufferMax);
 
-                // Reducir o destruir la pila de origen según las unidades tomadas.
-                if (take >= steel.stackCount)
+                // Reducir stackCount y destruir el ítem si queda vacío.
+                // Destroy(DestroyMode.Vanish) notifica correctamente al sistema de
+                // regiones, ListerThings y zonas de almacenamiento del mapa.
+                steel.stackCount -= take;
+                if (steel.stackCount <= 0)
                     steel.Destroy(DestroyMode.Vanish);
-                else
-                    steel.stackCount -= take;
 
                 // Recargar el buffer y descontar el consumo de este ciclo.
-                // Mathf.Max(0, ...) evita valores negativos si toConsume > take (no debería ocurrir).
+                // Mathf.Max(0, ...) evita valores negativos si toConsume > take (improbable).
                 steelBuffer = Mathf.Max(0, take - toConsume);
             }
             else
@@ -452,10 +507,21 @@ namespace RobotRepairStation
         ///   <item><b>Siempre:</b> nivel actual del buffer de acero.</item>
         /// </list>
         /// </para>
+        /// <para>
+        /// El resultado de <c>base.GetInspectString()</c> se incluye solo si no está
+        /// vacío, para evitar una línea en blanco al inicio del panel cuando la base
+        /// no aporta texto (comportamiento habitual en edificios simples).
+        /// </para>
         /// </summary>
         public override string GetInspectString()
         {
-            var sb = new StringBuilder(base.GetInspectString());
+            var sb = new StringBuilder();
+
+            // Incluir el texto base solo si no está vacío, para evitar
+            // una línea en blanco inicial en el panel de inspección.
+            string baseStr = base.GetInspectString();
+            if (!baseStr.NullOrEmpty())
+                sb.AppendLine(baseStr);
 
             if (!HasPower)
             {
